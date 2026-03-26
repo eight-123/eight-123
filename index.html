@@ -145,6 +145,10 @@ button.b:active{
   opacity:0.5;
 }
 
+.highlight {
+  background-color: #ffff99; /* 黄色くハイライト */
+}
+
 </style>
 </head>
 
@@ -314,10 +318,16 @@ function doSearch(){
   items.forEach(item=>{
     let name = item.querySelector(".name").innerText.toLowerCase();
     if(name.includes(keyword)){
-      item.style.display="flex";
+      item.classList.add("highlight"); // 背景色変更
       if(!found) found=item;
+
+      // 3秒後に元の背景に戻す
+      setTimeout(()=>{
+        item.classList.remove("highlight");
+      }, 3000);
+
     } else {
-      item.style.display="flex"; // 表示は消さずスクロールのみ
+      item.classList.remove("highlight"); // 元に戻す
     }
   });
 
