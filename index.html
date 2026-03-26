@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>🚚 積み込みリスト（ドラッグ上下対応）</title>
+<title>🚚 積み込みリスト（検索＆ドラッグ対応）</title>
 
 <style>
 body{
@@ -101,6 +101,20 @@ button:active{
 .check{
   transform:scale(1.5);
 }
+
+.search-bar{
+  margin:10px 0;
+}
+.search-bar input{
+  width:200px;
+  font-size:16px;
+  padding:4px;
+}
+.search-bar button{
+  font-size:16px;
+  padding:4px 10px;
+  margin-left:5px;
+}
 </style>
 </head>
 
@@ -111,6 +125,11 @@ button:active{
 <div class="topbar">
   <button class="a" onclick="exportText()">📋 書き出し</button>
   <button class="a" onclick="importText()">📥 読み込み</button>
+</div>
+
+<div class="search-bar">
+  🔍 <input type="text" id="searchInput" placeholder="検索">
+  <button onclick="searchItem()">検索</button>
 </div>
 
 <div id="list"></div>
@@ -306,6 +325,25 @@ function handleDrop(e){
 function handleDragEnd(e){
   this.classList.remove("dragging");
   draggedItem = null;
+}
+
+/////////////////////
+// 検索機能（スクロール＋強調）
+/////////////////////
+function searchItem(){
+  let query = document.getElementById("searchInput").value.trim();
+  if(!query) return;
+
+  let items = document.querySelectorAll(".item");
+  for(let item of items){
+    let name = item.querySelector(".name").innerText;
+    if(name.includes(query)){
+      item.scrollIntoView({behavior:"smooth", block:"start"});
+      item.style.background = "#ffff99"; // 強調表示
+      setTimeout(()=>item.style.background="white", 1000);
+      break;
+    }
+  }
 }
 </script>
 
