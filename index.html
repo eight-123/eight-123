@@ -19,7 +19,7 @@ body{
   border-radius:10px;
   display:flex;
   align-items:center;
-  gap:15px;
+  gap:10px;
 }
 
 .name{
@@ -32,7 +32,7 @@ body{
 .counter{
   display:flex;
   align-items:center;
-  gap:10px;
+  gap:5px;
 }
 
 .load{
@@ -99,8 +99,15 @@ button:active{
   transform:scale(1.5);
 }
 
-.dragging {
-  opacity: 0.5;
+.handle{
+  cursor:grab;
+  font-size:24px;
+  padding:0 8px;
+  user-select:none;
+}
+
+.dragging{
+  opacity:0.5;
 }
 
 </style>
@@ -146,6 +153,7 @@ function createItem(name="新しい項目",need=1,load=0){
     <input type="checkbox" class="check" disabled>
 
     <button class="delete" onclick="removeItem(this)">🗑</button>
+    <div class="handle">≡</div>
   `;
 
   document.getElementById("list").appendChild(div);
@@ -261,11 +269,12 @@ function loadData(){
 window.addEventListener("load",()=>{
   loadData();
 
-  // Sortable初期化（タッチ対応）
+  // Sortable初期化（ハンドルドラッグ対応）
   new Sortable(document.getElementById("list"), {
     animation:150,
     ghostClass:"dragging",
-    onEnd: saveData  // 並べ替え後も保存
+    handle:".handle",
+    onEnd: saveData
   });
 });
 window.addEventListener("beforeunload",saveData);
