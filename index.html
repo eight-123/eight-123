@@ -257,33 +257,37 @@ function update(item){
 }
 
 /////////////////////
-// 書き出し（必要数のみ）
+// 書き出し（文字＋数字）
 /////////////////////
 function exportText() {
   let lines = [];
-  document.querySelectorAll(".item").forEach(item=>{
-    let name=item.querySelector(".name").innerText.trim();
-    let need=item.querySelector(".need").value;
-    lines.push(`${name},${need}`);
+  document.querySelectorAll(".item").forEach(item => {
+    let name = item.querySelector(".name").innerText.trim();
+    let need = item.querySelector(".need").value;
+    // カンマなしで文字＋数字
+    lines.push(`${name}${need}`);
   });
-  let text = lines.join("\n");
-  prompt("コピーしてください",text);
+  let text = lines.join("\n"); // 改行区切り
+  prompt("コピーしてください", text);
 }
 
 /////////////////////
-// 読み込み（カンマ区切り）
+// 読み込み（数字で項目を判別）
 /////////////////////
 function importText() {
-  let text=prompt("貼り付けてください");
-  if(!text) return;
+  let text = prompt("貼り付けてください");
+  if (!text) return;
 
-  document.getElementById("list").innerHTML="";
+  document.getElementById("list").innerHTML = "";
 
-  text.split("\n").forEach(line=>{
-    let [name,need]=line.split(",");
-    if(!name) return;
-    createItem(name, Number(need)||0, 0);
-  });
+  // 正規表現で文字列+数字の組み合わせをすべて取得
+  let regex = /([^\d]+)(\d+)/g;
+  let match;
+  while (match = regex.exec(text)) {
+    let name = match[1].trim();       // 文字部分
+    let need = Number(match[2]);       // 数字部分
+    createItem(name, need, 0);
+  }
   saveData();
 }
 
