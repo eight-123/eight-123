@@ -265,25 +265,26 @@ function exportText() {
 }
 
 /////////////////////
-// 読み込み（textarea版）
+// 読み込み
 /////////////////////
-function importTextArea(){
-  let text = document.getElementById("importArea").value;
-  if(!text) return;
+function importText() {
+  let text = prompt("貼り付けてください");
+  if (!text) return;
 
-  document.getElementById("list").innerHTML="";
+  document.getElementById("list").innerHTML = "";
 
-  text.split("\n").forEach(line=>{
-    line=line.trim();
-    if(!line)return;
+  text.split(",").forEach(line => {   // カンマで分割
+    line = line.trim();
+    if (!line) return;
+
     let match = line.match(/^(.+?)(\d+)$/);
-    if(!match)return;
+    if (!match) return;
+
     let name = match[1];
     let need = Number(match[2]);
+
     createItem(name, need, 0);
   });
-
-  autoSave();
 }
 
 /////////////////////
