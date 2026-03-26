@@ -257,7 +257,74 @@ function importText() {
 
     createItem(name, need || 0, 0);
   });
-}/////////////////////
+}
+/////////////////////
+// オートセーブ
+/////////////////////
+function autoSave() {
+  let items = [];
+  document.querySelectorAll(".item").forEach(item => {
+    let name = item.querySelector(".name").innerText.trim();
+    let need = Number(item.querySelector(".need").value);
+    let load = Number(item.querySelector(".load").value);
+
+    items.push({name, need, load});
+  });
+
+  localStorage.setItem("tumiList", JSON.stringify(items));
+}
+
+/////////////////////
+// update に autoSave を追加
+/////////////////////
+function update(item){
+  let need = Number(item.querySelector(".need").value);
+  let load = Number(item.querySelector(".load").value);
+  let check = item.querySelector(".check");
+
+  if(load>=need && need>0){
+    check.checked = true;
+    item.classList.add("done");
+  } else {
+    check.checked = false;
+    item.classList.remove("done");
+  }
+
+  autoSave(); // ←ここでオートセーブ
+}
+
+/////////////////////
+// 削除・追加でも autoSave
+/////////////////////
+function removeItem(btn){
+  if(confirm("削除しますか？")){
+    btn.closest(".item").remove();
+    autoSave(); // 削除後保存
+  }
+}
+
+function addItem(){
+  let name = prompt("項目名を入力");
+  if(!name) return;
+
+  createItem(name,1,0);
+  autoSave(); // 追加後保存
+}
+
+/////////////////////
+// ページ読み込み時に自動復元
+/////////////////////
+function loadFromBrowser() {
+  let data = JSON.parse(localStorage.getItem("tumiList") || "[]");
+  data.forEach(d => {
+    createItem(d.name, d.need, d.load);
+  });
+}
+
+// ページ開いたら自動ロード
+window.onload = loadFromBrowser;
+  
+/////////////////////
 // 初期データ
 /////////////////////
 
