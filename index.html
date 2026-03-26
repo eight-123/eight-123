@@ -99,6 +99,10 @@ button:active{
   transform:scale(1.5);
 }
 
+.dragging {
+  opacity: 0.5;
+}
+
 </style>
 </head>
 
@@ -114,6 +118,9 @@ button:active{
 <div id="list"></div>
 
 <button class="add" onclick="addItem()">＋ 項目追加</button>
+
+<!-- Sortable.js -->
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
 
 <script>
 
@@ -251,7 +258,16 @@ function loadData(){
   data.forEach(d=>createItem(d.name,d.need,d.load));
 }
 
-window.addEventListener("load",loadData);
+window.addEventListener("load",()=>{
+  loadData();
+
+  // Sortable初期化（タッチ対応）
+  new Sortable(document.getElementById("list"), {
+    animation:150,
+    ghostClass:"dragging",
+    onEnd: saveData  // 並べ替え後も保存
+  });
+});
 window.addEventListener("beforeunload",saveData);
 
 </script>
