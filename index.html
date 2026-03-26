@@ -2,102 +2,105 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>積み込み管理</title>
+<title>🚚 積み込みリスト（ドラッグ上下対応）</title>
 
 <style>
-
 body{
-font-family:sans-serif;
-background:#f0f0f0;
-padding:20px;
+  font-family:sans-serif;
+  background:#f0f0f0;
+  padding:20px;
 }
 
 .item{
-background:white;
-padding:15px;
-margin:12px 0;
-border-radius:10px;
-display:flex;
-align-items:center;
-gap:15px;
+  background:white;
+  padding:15px;
+  margin:12px 0;
+  border-radius:10px;
+  display:flex;
+  align-items:center;
+  gap:15px;
+}
+
+.item.dragging {
+  opacity:0.5;
+  border:2px dashed #999;
 }
 
 .name{
-width:140px;
-font-weight:bold;
+  width:140px;
+  font-weight:bold;
 }
 
 .need{ width:60px; }
 
 .counter{
-display:flex;
-align-items:center;
-gap:10px;
+  display:flex;
+  align-items:center;
+  gap:10px;
 }
 
 .load{
-width:60px;
-text-align:center;
-font-size:18px;
+  width:60px;
+  text-align:center;
+  font-size:18px;
 }
 
 button.a{
-width:160px;
-height:60px;
-font-size:26px;
-border:none;
-border-radius:12px;
-background:#ddd;
-cursor:pointer;
+  width:160px;
+  height:60px;
+  font-size:26px;
+  border:none;
+  border-radius:12px;
+  background:#ddd;
+  cursor:pointer;
 }
 
 button.b{
-width:60px;
-height:60px;
-font-size:26px;
-border:none;
-border-radius:12px;
-background:#ddd;
-cursor:pointer;
+  width:60px;
+  height:60px;
+  font-size:26px;
+  border:none;
+  border-radius:12px;
+  background:#ddd;
 }
 
 button:active{
-background:#bbb;
+  background:#bbb;
 }
 
 .delete{
-width:60px;
-height:60px;
-font-size:26px;
-border:none;
-border-radius:12px;
-background:#ffb3b3;
-cursor:pointer;
+  width:60px;
+  height:60px;
+  font-size:26px;
+  border:none;
+  border-radius:12px;
+  background:#ffb3b3;
+  cursor:pointer;
 }
 
 .done{
-background:#c8ffd0;
+  background:#c8ffd0;
 }
 
 .add{
-width:auto;
-height:auto;
-padding:10px 20px;
-font-size:18px;
-margin-top:15px;
+  width:auto;
+  height:auto;
+  padding:10px 20px;
+  font-size:18px;
+  margin-top:15px;
 }
 
 .topbar{
-width:320px; 
-height:60px;
-font-size:26px;
-display:flex;
+  width:340px;
+  height:60px;
+  font-size:26px;
+  display:flex;
+  gap:10px;
 }
 
 .check{
-transform:scale(1.5);
+  transform:scale(1.5);
 }
-
 </style>
 </head>
 
@@ -106,8 +109,8 @@ transform:scale(1.5);
 <h1>🚚 積み込みリスト</h1>
 
 <div class="topbar">
-<button class="a" onclick="exportText()">📋 書き出し</button>
-<button class="a" onclick="importText()">📥 読み込み</button>
+  <button class="a" onclick="exportText()">📋 書き出し</button>
+  <button class="a" onclick="importText()">📥 読み込み</button>
 </div>
 
 <div id="list"></div>
@@ -115,222 +118,195 @@ transform:scale(1.5);
 <button class="add" onclick="addItem()">＋ 項目追加</button>
 
 <script>
+/////////////////////
+// ドラッグ用変数
+/////////////////////
+let draggedItem = null;
 
 /////////////////////
 // 項目生成
 /////////////////////
-
 function createItem(name="新しい項目",need=1,load=0){
+  let div=document.createElement("div");
+  div.className="item";
+  div.setAttribute("draggable", true);
 
-let div=document.createElement("div");
-div.className="item";
+  div.innerHTML=`
+    <div class="name" contenteditable="true">${name}</div>
+    必要
+    <input class="need" type="number" value="${need}">
+    <div class="counter">
+      <button class="b" onclick="change(this,-1)">−</button>
+      <input class="load" type="number" value="${load}" readonly>
+      <button class="b" onclick="change(this,1)">＋</button>
+    </div>
+    <input type="checkbox" class="check" disabled>
+    <button class="delete" onclick="removeItem(this)">🗑</button>
+  `;
 
-div.innerHTML=`
-<div class="name" contenteditable="true">${name}</div>
+  // ドラッグイベント
+  div.addEventListener('dragstart', handleDragStart);
+  div.addEventListener('dragover', handleDragOver);
+  div.addEventListener('drop', handleDrop);
+  div.addEventListener('dragend', handleDragEnd);
 
-必要
-<input class="need" type="number" value="${need}">
+  document.getElementById("list").appendChild(div);
 
-<div class="counter">
-<button class="b" onclick="change(this,-1)">−</button>
-<input class="load" type="number" value="${load}" readonly>
-<button class="b" onclick="change(this,1)">＋</button>
-</div>
+  // 変更検知
+  div.querySelector(".need").addEventListener("input",()=>update(div));
 
-<input type="checkbox" class="check" disabled>
-
-<button class="delete" onclick="removeItem(this)">🗑</button>
-`;
-
-document.getElementById("list").appendChild(div);
-
-div.querySelector(".need")
-.addEventListener("input",()=>update(div));
-
-update(div);
+  update(div);
 }
 
 /////////////////////
 // 追加
 /////////////////////
-
 function addItem(){
-
-let name=prompt("項目名を入力");
-if(!name)return;
-
-createItem(name,1,0);
+  let name = prompt("項目名を入力");
+  if(!name)return;
+  createItem(name,1,0);
+  autoSave();
 }
 
 /////////////////////
 // 削除
 /////////////////////
-
 function removeItem(btn){
-
-if(confirm("削除しますか？")){
-btn.closest(".item").remove();
-}
-
+  if(confirm("削除しますか？")){
+    btn.closest(".item").remove();
+    autoSave();
+  }
 }
 
 /////////////////////
 // カウント変更
 /////////////////////
-
 function change(btn,delta){
+  let item=btn.closest(".item");
+  let loadInput=item.querySelector(".load");
 
-let item=btn.closest(".item");
-let loadInput=item.querySelector(".load");
+  let v=Number(loadInput.value);
+  v+=delta;
+  if(v<0)v=0;
 
-let v=Number(loadInput.value);
-v+=delta;
-
-if(v<0)v=0;
-
-loadInput.value=v;
-
-update(item);
+  loadInput.value=v;
+  update(item);
 }
 
 /////////////////////
 // 判定更新
 /////////////////////
-
 function update(item){
+  let need=Number(item.querySelector(".need").value);
+  let load=Number(item.querySelector(".load").value);
+  let check=item.querySelector(".check");
 
-let need=Number(item.querySelector(".need").value);
-let load=Number(item.querySelector(".load").value);
-let check=item.querySelector(".check");
+  if(load>=need && need>0){
+    check.checked=true;
+    item.classList.add("done");
+  } else {
+    check.checked=false;
+    item.classList.remove("done");
+  }
 
-if(load>=need && need>0){
-check.checked=true;
-item.classList.add("done");
-}else{
-check.checked=false;
-item.classList.remove("done");
-}
-
+  autoSave();
 }
 
 /////////////////////
 // 書き出し（必要数のみ）
 /////////////////////
-
 function exportText() {
   let lines = [];
-
   document.querySelectorAll(".item").forEach(item => {
     let name = item.querySelector(".name").innerText.trim();
     let need = item.querySelector(".need").value;
-
-    // カンマなしで文字＋数字
     lines.push(`${name}${need}`);
   });
-
-  let text = lines.join("\n"); // 改行区切り
-
+  let text = lines.join("\n");
   prompt("コピーしてください", text);
 }
+
 /////////////////////
 // 読み込み
 /////////////////////
-
 function importText() {
   let text = prompt("貼り付けてください");
-  if (!text) return;
+  if(!text)return;
 
-  // 既存のリストをクリア
-  document.getElementById("list").innerHTML = "";
+  document.getElementById("list").innerHTML="";
 
-  // 改行ごとに処理
-  text.split("\n").forEach(line => {
-    line = line.trim();
-    if (!line) return;
-
-    // 末尾の数字を抽出
+  text.split("\n").forEach(line=>{
+    line=line.trim();
+    if(!line)return;
     let match = line.match(/^(.+?)(\d+)$/);
-    if (!match) return; // 数字がなければスキップ
-
-    let name = match[1];           // 文字部分
-    let need = Number(match[2]);   // 数字部分
-
-    createItem(name, need || 0, 0);
+    if(!match)return;
+    let name = match[1];
+    let need = Number(match[2]);
+    createItem(name, need, 0);
   });
+  autoSave();
 }
+
 /////////////////////
 // オートセーブ
 /////////////////////
-function autoSave() {
-  let items = [];
-  document.querySelectorAll(".item").forEach(item => {
+function autoSave(){
+  let items=[];
+  document.querySelectorAll(".item").forEach(item=>{
     let name = item.querySelector(".name").innerText.trim();
     let need = Number(item.querySelector(".need").value);
     let load = Number(item.querySelector(".load").value);
-
     items.push({name, need, load});
   });
-
   localStorage.setItem("tumiList", JSON.stringify(items));
 }
 
 /////////////////////
-// update に autoSave を追加
+// オートロード
 /////////////////////
-function update(item){
-  let need = Number(item.querySelector(".need").value);
-  let load = Number(item.querySelector(".load").value);
-  let check = item.querySelector(".check");
-
-  if(load>=need && need>0){
-    check.checked = true;
-    item.classList.add("done");
-  } else {
-    check.checked = false;
-    item.classList.remove("done");
-  }
-
-  autoSave(); // ←ここでオートセーブ
-}
-
-/////////////////////
-// 削除・追加でも autoSave
-/////////////////////
-function removeItem(btn){
-  if(confirm("削除しますか？")){
-    btn.closest(".item").remove();
-    autoSave(); // 削除後保存
-  }
-}
-
-function addItem(){
-  let name = prompt("項目名を入力");
-  if(!name) return;
-
-  createItem(name,1,0);
-  autoSave(); // 追加後保存
-}
-
-/////////////////////
-// ページ読み込み時に自動復元
-/////////////////////
-function loadFromBrowser() {
+function loadFromBrowser(){
   let data = JSON.parse(localStorage.getItem("tumiList") || "[]");
-  data.forEach(d => {
+  data.forEach(d=>{
     createItem(d.name, d.need, d.load);
   });
 }
-
-// ページ開いたら自動ロード
 window.onload = loadFromBrowser;
-  
-/////////////////////
-// 初期データ
-/////////////////////
 
-//createItem("譜面台",5);
-//createItem("椅子",10);
+/////////////////////
+// ドラッグイベント（上下両対応）
+/////////////////////
+function handleDragStart(e){
+  draggedItem = this;
+  this.classList.add("dragging");
+  e.dataTransfer.effectAllowed = "move";
+}
 
+function handleDragOver(e){
+  e.preventDefault();
+  return false;
+}
+
+function handleDrop(e){
+  e.stopPropagation();
+  if(draggedItem !== this){
+    let list = this.parentNode;
+    let children = [...list.children];
+    if(children.indexOf(draggedItem) < children.indexOf(this)){
+      // 下方向にドロップ
+      list.insertBefore(draggedItem, this.nextSibling);
+    } else {
+      // 上方向にドロップ
+      list.insertBefore(draggedItem, this);
+    }
+    autoSave();
+  }
+  return false;
+}
+
+function handleDragEnd(e){
+  this.classList.remove("dragging");
+  draggedItem = null;
+}
 </script>
 
 </body>
