@@ -273,18 +273,14 @@ function importText() {
 
   document.getElementById("list").innerHTML = "";
 
-  text.split(",").forEach(line => {   // カンマで分割
-    line = line.trim();
-    if (!line) return;
-
-    let match = line.match(/^(.+?)(\d+)$/);
-    if (!match) return;
-
-    let name = match[1];
+  // 文字＋数字の連続パターンを全て抽出
+  let regex = /([^\d]+)(\d+)/g;
+  let match;
+  while ((match = regex.exec(text)) !== null) {
+    let name = match[1].trim();
     let need = Number(match[2]);
-
     createItem(name, need, 0);
-  });
+  }
 }
 
 /////////////////////
