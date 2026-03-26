@@ -41,8 +41,18 @@ text-align:center;
 font-size:18px;
 }
 
-button{
+button.a{
 width:160px;
+height:60px;
+font-size:26px;
+border:none;
+border-radius:12px;
+background:#ddd;
+cursor:pointer;
+}
+
+button.b{
+width:60px;
 height:60px;
 font-size:26px;
 border:none;
@@ -56,7 +66,13 @@ background:#bbb;
 }
 
 .delete{
+width:60px;
+height:60px;
+font-size:26px;
+border:none;
+border-radius:12px;
 background:#ffb3b3;
+cursor:pointer;
 }
 
 .done{
@@ -90,8 +106,8 @@ transform:scale(1.5);
 <h1>🚚 積み込みリスト</h1>
 
 <div class="topbar">
-<button onclick="exportText()">📋 書き出し</button>
-<button onclick="importText()">📥 読み込み</button>
+<button class="a" onclick="exportText()">📋 書き出し</button>
+<button class="a" onclick="importText()">📥 読み込み</button>
 </div>
 
 <div id="list"></div>
@@ -116,9 +132,9 @@ div.innerHTML=`
 <input class="need" type="number" value="${need}">
 
 <div class="counter">
-<button onclick="change(this,-1)">−</button>
+<button class="b" onclick="change(this,-1)">−</button>
 <input class="load" type="number" value="${load}" readonly>
-<button onclick="change(this,1)">＋</button>
+<button class="b" onclick="change(this,1)">＋</button>
 </div>
 
 <input type="checkbox" class="check" disabled>
@@ -201,57 +217,52 @@ item.classList.remove("done");
 // 書き出し（必要数のみ）
 /////////////////////
 
-function exportText(){
+function exportText() {
+  let lines = [];
 
-let lines=[];
+  document.querySelectorAll(".item").forEach(item => {
+    let name = item.querySelector(".name").innerText.trim();
+    let need = item.querySelector(".need").value;
 
-document.querySelectorAll(".item").forEach(item=>{
+    // カンマなしで文字＋数字
+    lines.push(`${name}${need}`);
+  });
 
-let name=item.querySelector(".name").innerText.trim();
-let need=item.querySelector(".need").value;
+  let text = lines.join("\n"); // 改行区切り
 
-lines.push(`${name},${need}`);
-
-});
-
-let text=lines.join("\n");
-
-prompt("コピーしてください",text);
+  prompt("コピーしてください", text);
 }
-
 /////////////////////
 // 読み込み
 /////////////////////
 
-function importText(){
+function importText() {
+  let text = prompt("貼り付けてください");
+  if (!text) return;
 
-let text=prompt("貼り付けてください");
-if(!text)return;
+  // 既存のリストをクリア
+  document.getElementById("list").innerHTML = "";
 
-document.getElementById("list").innerHTML="";
+  // 改行ごとに処理
+  text.split("\n").forEach(line => {
+    line = line.trim();
+    if (!line) return;
 
-text.split("\n").forEach(line=>{
+    // 末尾の数字を抽出
+    let match = line.match(/^(.+?)(\d+)$/);
+    if (!match) return; // 数字がなければスキップ
 
-let [name,need]=line.split(",");
+    let name = match[1];           // 文字部分
+    let need = Number(match[2]);   // 数字部分
 
-if(!name)return;
-
-createItem(
-name,
-Number(need)||0,
-0
-);
-
-});
-
-}
-
-/////////////////////
+    createItem(name, need || 0, 0);
+  });
+}/////////////////////
 // 初期データ
 /////////////////////
 
-createItem("譜面台",5);
-createItem("椅子",10);
+//createItem("譜面台",5);
+//createItem("椅子",10);
 
 </script>
 
