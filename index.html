@@ -12,11 +12,45 @@ body{
   padding:20px;
 }
 
+.topbar{
+  display:flex;
+  gap:10px;
+  margin-bottom:10px;
+}
+
+.topbar button.a{
+  width:160px;
+  height:60px;
+  font-size:26px;
+  border:none;
+  border-radius:12px;
+  background:#ddd;
+  cursor:pointer;
+}
+
+.topbar button.a:active{
+  background:#bbb;
+}
+
+.searchbar{
+  width:100%;
+  padding:10px;
+  font-size:18px;
+  margin-bottom:15px;
+}
+
 .item{
   background:white;
   padding:15px;
   margin:12px 0;
   border-radius:10px;
+  display:flex;
+  align-items:center;
+  gap:10px;
+  justify-content: space-between; /* 右端にハンドル */
+}
+
+.leftPart{
   display:flex;
   align-items:center;
   gap:10px;
@@ -41,16 +75,6 @@ body{
   font-size:18px;
 }
 
-button.a{
-  width:160px;
-  height:60px;
-  font-size:26px;
-  border:none;
-  border-radius:12px;
-  background:#ddd;
-  cursor:pointer;
-}
-
 button.b{
   width:60px;
   height:60px;
@@ -61,7 +85,7 @@ button.b{
   cursor:pointer;
 }
 
-button:active{
+button.b:active{
   background:#bbb;
 }
 
@@ -85,14 +109,6 @@ button:active{
   padding:10px 20px;
   font-size:18px;
   margin-top:15px;
-}
-
-.topbar{
-  width:340px; 
-  height:60px;
-  font-size:26px;
-  display:flex;
-  gap:10px;
 }
 
 .check{
@@ -122,6 +138,8 @@ button:active{
   <button class="a" onclick="importText()">📥 読み込み</button>
 </div>
 
+<input type="text" class="searchbar" placeholder="検索..." id="searchInput">
+
 <div id="list"></div>
 
 <button class="add" onclick="addItem()">＋ 項目追加</button>
@@ -139,20 +157,18 @@ function createItem(name="新しい項目",need=1,load=0){
   div.className="item";
 
   div.innerHTML=`
-    <div class="name" contenteditable="true">${name}</div>
-
-    必要
-    <input class="need" type="number" value="${need}">
-
-    <div class="counter">
-      <button class="b" onclick="change(this,-1)">−</button>
-      <input class="load" type="number" value="${load}" readonly>
-      <button class="b" onclick="change(this,1)">＋</button>
+    <div class="leftPart">
+      <div class="name" contenteditable="true">${name}</div>
+      必要
+      <input class="need" type="number" value="${need}">
+      <div class="counter">
+        <button class="b" onclick="change(this,-1)">−</button>
+        <input class="load" type="number" value="${load}" readonly>
+        <button class="b" onclick="change(this,1)">＋</button>
+      </div>
+      <input type="checkbox" class="check" disabled>
+      <button class="delete" onclick="removeItem(this)">🗑</button>
     </div>
-
-    <input type="checkbox" class="check" disabled>
-
-    <button class="delete" onclick="removeItem(this)">🗑</button>
     <div class="handle">≡</div>
   `;
 
@@ -229,7 +245,7 @@ function exportText() {
 }
 
 /////////////////////
-// 読み込み（文字＋数字の連続で複数項目認識）
+// 読み込み（文字＋数字）
 /////////////////////
 function importText() {
   let text=prompt("貼り付けてください");
@@ -266,10 +282,34 @@ function loadData(){
   data.forEach(d=>createItem(d.name,d.need,d.load));
 }
 
+/////////////////////
+// 検索機能
+/////////////////////
+document.getElementById("searchInput").addEventListener("input", e=>{
+  let keyword=e.target.value.toLowerCase();
+  let list=document.getElementById("list");
+  let items=list.querySelectorAll(".item");
+  let found=null;
+  items.forEach(item=>{
+    let name=item.querySelector(".name").innerText.toLowerCase();
+    if(name.includes(keyword)){
+      item.style.display="flex";
+      if(!found) found=item; // 一番最初に見つかったもの
+    }else{
+      item.style.display="flex"; // 表示は消さずスクロールだけ
+    }
+  });
+  if(found){
+    found.scrollIntoView({behavior:"smooth",block:"center"});
+  }
+});
+
+/////////////////////
+// 初期化
+/////////////////////
 window.addEventListener("load",()=>{
   loadData();
 
-  // Sortable初期化（ハンドルドラッグ対応）
   new Sortable(document.getElementById("list"), {
     animation:150,
     ghostClass:"dragging",
@@ -277,6 +317,7 @@ window.addEventListener("load",()=>{
     onEnd: saveData
   });
 });
+
 window.addEventListener("beforeunload",saveData);
 
 </script>
