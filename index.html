@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>🚚 積み込みリスト（検索＆ドラッグ対応）</title>
+<title>🚚 積み込みリスト（検索＆ドラッグ対応・タブレット対応）</title>
 
 <style>
 body{
@@ -115,6 +115,20 @@ button:active{
   padding:4px 10px;
   margin-left:5px;
 }
+
+.import-area{
+  margin:10px 0;
+}
+.import-area textarea{
+  width:100%;
+  font-size:16px;
+  padding:4px;
+}
+.import-area button{
+  font-size:16px;
+  padding:4px 10px;
+  margin-top:5px;
+}
 </style>
 </head>
 
@@ -124,12 +138,18 @@ button:active{
 
 <div class="topbar">
   <button class="a" onclick="exportText()">📋 書き出し</button>
-  <button class="a" onclick="importText()">📥 読み込み</button>
 </div>
 
 <div class="search-bar">
   🔍 <input type="text" id="searchInput" placeholder="検索">
   <button onclick="searchItem()">検索</button>
+</div>
+
+<div class="import-area">
+  📥 読み込み用（改行ごとに項目）
+  <textarea id="importArea" rows="5" placeholder="名前と必要数を文字＋数字で入力"></textarea>
+  <br>
+  <button onclick="importTextArea()">読み込み</button>
 </div>
 
 <div id="list"></div>
@@ -171,7 +191,6 @@ function createItem(name="新しい項目",need=1,load=0){
 
   document.getElementById("list").appendChild(div);
 
-  // 変更検知
   div.querySelector(".need").addEventListener("input",()=>update(div));
 
   update(div);
@@ -246,11 +265,11 @@ function exportText() {
 }
 
 /////////////////////
-// 読み込み
+// 読み込み（textarea版）
 /////////////////////
-function importText() {
-  let text = prompt("貼り付けてください");
-  if(!text)return;
+function importTextArea(){
+  let text = document.getElementById("importArea").value;
+  if(!text) return;
 
   document.getElementById("list").innerHTML="";
 
@@ -263,6 +282,7 @@ function importText() {
     let need = Number(match[2]);
     createItem(name, need, 0);
   });
+
   autoSave();
 }
 
@@ -311,10 +331,8 @@ function handleDrop(e){
     let list = this.parentNode;
     let children = [...list.children];
     if(children.indexOf(draggedItem) < children.indexOf(this)){
-      // 下方向にドロップ
       list.insertBefore(draggedItem, this.nextSibling);
     } else {
-      // 上方向にドロップ
       list.insertBefore(draggedItem, this);
     }
     autoSave();
