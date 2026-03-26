@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>積み込み管理</title>
+
+<style>
+
+body{
+font-family:sans-serif;
+background:#f0f0f0;
+padding:20px;
+}
+
+.item{
+background:white;
+padding:15px;
+margin:12px 0;
+border-radius:10px;
+display:flex;
+align-items:center;
+gap:15px;
+}
+
+.name{
+width:140px;
+font-weight:bold;
+}
+
+.need{ width:60px; }
+
+.counter{
+display:flex;
+align-items:center;
+gap:10px;
+}
+
+.load{
+width:60px;
+text-align:center;
+font-size:18px;
+}
+
+button{
+width:60px;
+height:60px;
+font-size:26px;
+border:none;
+border-radius:12px;
+background:#ddd;
+cursor:pointer;
+}
+
+button:active{
+background:#bbb;
+}
+
+.delete{
+background:#ffb3b3;
+}
+
+.done{
+background:#c8ffd0;
+}
+
+.add{
+width:auto;
+height:auto;
+padding:10px 20px;
+font-size:18px;
+margin-top:15px;
+}
+
+.topbar{
+margin-bottom:15px;
+}
+
+.check{
+transform:scale(1.5);
+}
+
+</style>
+</head>
+
+<body>
+
+<h1>🚚 積み込みリスト</h1>
+
+<div class="topbar">
+<button onclick="exportText()">📋 書き出し</button>
+<button onclick="importText()">📥 読み込み</button>
+</div>
+
+<div id="list"></div>
+
+<button class="add" onclick="addItem()">＋ 項目追加</button>
+
+<script>
+
+/////////////////////
+// 項目生成
+/////////////////////
+
+function createItem(name="新しい項目",need=1,load=0){
+
+let div=document.createElement("div");
+div.className="item";
+
+div.innerHTML=`
+<div class="name" contenteditable="true">${name}</div>
+
+必要
+<input class="need" type="number" value="${need}">
+
+<div class="counter">
+<button onclick="change(this,-1)">−</button>
+<input class="load" type="number" value="${load}" readonly>
+<button onclick="change(this,1)">＋</button>
+</div>
+
+<input type="checkbox" class="check" disabled>
+
+<button class="delete" onclick="removeItem(this)">🗑</button>
+`;
+
+document.getElementById("list").appendChild(div);
+
+div.querySelector(".need")
+.addEventListener("input",()=>update(div));
+
+update(div);
+}
+
+/////////////////////
+// 追加
+/////////////////////
+
+function addItem(){
+
+let name=prompt("項目名を入力");
+if(!name)return;
+
+createItem(name,1,0);
+}
+
+/////////////////////
+// 削除
+/////////////////////
+
+function removeItem(btn){
+
+if(confirm("削除しますか？")){
+btn.closest(".item").remove();
+}
+
+}
+
+/////////////////////
+// カウント変更
+/////////////////////
+
+function change(btn,delta){
+
+let item=btn.closest(".item");
+let loadInput=item.querySelector(".load");
+
+let v=Number(loadInput.value);
+v+=delta;
+
+if(v<0)v=0;
+
+loadInput.value=v;
+
+update(item);
+}
+
+/////////////////////
+// 判定更新
+/////////////////////
+
+function update(item){
+
+let need=Number(item.querySelector(".need").value);
+let load=Number(item.querySelector(".load").value);
+let check=item.querySelector(".check");
+
+if(load>=need && need>0){
+check.checked=true;
+item.classList.add("done");
+}else{
+check.checked=false;
+item.classList.remove("done");
+}
+
+}
+
+/////////////////////
+// 書き出し（必要数のみ）
+/////////////////////
+
+function exportText(){
+
+let lines=[];
+
+document.querySelectorAll(".item").forEach(item=>{
+
+let name=item.querySelector(".name").innerText.trim();
+let need=item.querySelector(".need").value;
+
+lines.push(`${name},${need}`);
+
+});
+
+let text=lines.join("\n");
+
+prompt("コピーしてください",text);
+}
+
+/////////////////////
+// 読み込み
+/////////////////////
+
+function importText(){
+
+let text=prompt("貼り付けてください");
+if(!text)return;
+
+document.getElementById("list").innerHTML="";
+
+text.split("\n").forEach(line=>{
+
+let [name,need]=line.split(",");
+
+if(!name)return;
+
+createItem(
+name,
+Number(need)||0,
+0
+);
+
+});
+
+}
+
+/////////////////////
+// 初期データ
+/////////////////////
+
+createItem("譜面台",5);
+createItem("椅子",10);
+
+</script>
+
+</body>
+</html>
