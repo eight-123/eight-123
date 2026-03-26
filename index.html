@@ -32,11 +32,29 @@ body{
   background:#bbb;
 }
 
-.searchbar{
-  width:100%;
-  padding:10px;
-  font-size:18px;
+.searchWrapper{
+  display:flex;
+  gap:5px;
   margin-bottom:15px;
+}
+
+.searchbar{
+  flex:1;
+  padding:8px;
+  font-size:16px;
+}
+
+.searchBtn{
+  width:100px;
+  font-size:16px;
+  border:none;
+  border-radius:12px;
+  background:#ddd;
+  cursor:pointer;
+}
+
+.searchBtn:active{
+  background:#bbb;
 }
 
 .item{
@@ -139,7 +157,10 @@ button.b:active{
   <button class="a" onclick="importText()">📥 読み込み</button>
 </div>
 
-<input type="text" class="searchbar" placeholder="検索..." id="searchInput">
+<div class="searchWrapper">
+  <input type="text" class="searchbar" placeholder="検索..." id="searchInput">
+  <button class="searchBtn" onclick="doSearch()">検索</button>
+</div>
 
 <div id="list"></div>
 
@@ -239,14 +260,14 @@ function exportText() {
   document.querySelectorAll(".item").forEach(item=>{
     let name=item.querySelector(".name").innerText.trim();
     let need=item.querySelector(".need").value;
-    lines.push(`${name}${need}`);
+    lines.push(`${name},${need}`);
   });
   let text = lines.join("\n");
   prompt("コピーしてください",text);
 }
 
 /////////////////////
-// 読み込み（文字＋数字）
+// 読み込み（カンマ区切り）
 /////////////////////
 function importText() {
   let text=prompt("貼り付けてください");
@@ -254,13 +275,11 @@ function importText() {
 
   document.getElementById("list").innerHTML="";
 
-  let regex=/([^\d]+)(\d+)/g;
-  let match;
-  while(match=regex.exec(text)){
-    let name=match[1].trim();
-    let need=Number(match[2]);
-    createItem(name,need,0);
-  }
+  text.split("\n").forEach(line=>{
+    let [name,need]=line.split(",");
+    if(!name) return;
+    createItem(name, Number(need)||0, 0);
+  });
   saveData();
 }
 
@@ -284,26 +303,28 @@ function loadData(){
 }
 
 /////////////////////
-// 検索機能
+// 検索機能（ボタン押すとスクロール）
 /////////////////////
-document.getElementById("searchInput").addEventListener("input", e=>{
-  let keyword=e.target.value.toLowerCase();
-  let list=document.getElementById("list");
-  let items=list.querySelectorAll(".item");
-  let found=null;
+function doSearch(){
+  let keyword = document.getElementById("searchInput").value.toLowerCase();
+  let list = document.getElementById("list");
+  let items = list.querySelectorAll(".item");
+  let found = null;
+
   items.forEach(item=>{
-    let name=item.querySelector(".name").innerText.toLowerCase();
+    let name = item.querySelector(".name").innerText.toLowerCase();
     if(name.includes(keyword)){
       item.style.display="flex";
-      if(!found) found=item; // 一番最初に見つかったもの
-    }else{
-      item.style.display="flex"; // 表示は消さずスクロールだけ
+      if(!found) found=item;
+    } else {
+      item.style.display="flex"; // 表示は消さずスクロールのみ
     }
   });
+
   if(found){
-    found.scrollIntoView({behavior:"smooth",block:"center"});
+    found.scrollIntoView({behavior:"smooth", block:"center"});
   }
-});
+}
 
 /////////////////////
 // 初期化
