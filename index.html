@@ -2,339 +2,222 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>歴史年表GIS</title>
+<title>歴史学習タイムライン</title>
 
 <style>
-
 body{
-margin:0;
-font-family:sans-serif;
-display:flex;
-height:100vh;
+  font-family: sans-serif;
+  padding: 20px;
 }
 
-/* ===== 左：年表 ===== */
-
-#left{
-width:60%;
-overflow-y:auto;
-background:#f5f5f5;
-padding:20px;
+input, button{
+  padding: 6px;
+  margin: 5px;
 }
 
 #timeline{
-position:relative;
-border-left:4px solid black;
-margin-left:40px;
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding: 10px;
+  border-top: 2px solid #333;
+  margin-top: 20px;
 }
 
-.event{
-position:absolute;
-background:white;
-padding:10px;
-border-radius:6px;
-box-shadow:0 0 6px #aaa;
-cursor:pointer;
-width:320px;
+.card{
+  min-width: 240px;
+  border: 1px solid #aaa;
+  border-radius: 10px;
+  padding: 10px;
+  background: #f7f7f7;
+  flex-shrink: 0;
 }
 
-.event:hover{
-background:#e3f2fd;
+.year{
+  font-weight: bold;
+  font-size: 18px;
 }
 
-/* ===== 右：地図 ===== */
-
-#right{
-width:40%;
-background:white;
-padding:10px;
-overflow:auto;
+.era{
+  font-size: 12px;
+  color: #666;
 }
 
-svg path{
-fill:#ddd;
-stroke:#333;
-cursor:pointer;
+.category{
+  font-size: 12px;
+  color: #0077cc;
 }
 
+button.small{
+  font-size: 12px;
+  margin-top: 5px;
+}
 </style>
 </head>
 
 <body>
 
-<!-- ================= 年表 ================= -->
+<h2>📚 歴史学習タイムライン</h2>
 
-<div id="left">
-
-<h2>年表</h2>
-
-<input id="yearInput" placeholder="年（例：1600 / -300）">
-<input id="titleInput" placeholder="出来事">
-<input id="placeInput" placeholder="場所">
-
+<input id="year" type="number" placeholder="西暦">
+<input id="text" type="text" placeholder="出来事">
+<input id="category" type="text" placeholder="分類（戦争・文化など）">
 <button onclick="addEvent()">追加</button>
-
-<br><br>
-
-<button onclick="setMode('normal')">通常</button>
-<button onclick="setMode('scale')">年代比例</button>
-
-<br><br>
-
-<h3>年代スライダー</h3>
-
-<input type="range"
-id="timeSlider"
-min="-1000"
-max="2025"
-value="1600"
-oninput="updateTime()">
-
-<span id="timeLabel"></span>
 
 <div id="timeline"></div>
 
-</div>
-
-<!-- ================= 地図 ================= -->
-
-<div id="japanMap">
-
-<svg viewBox="0 0 300 500" width="320">
-
-<!-- 北海道 -->
-<path d="M180 20 L230 30 L240 70 L190 80 L170 50 Z"
-fill="#ddd" onclick="selectPref('北海道')"/>
-
-<!-- 東北 -->
-<path d="M170 90 L230 100 L240 160 L180 170 L160 130 Z"
-fill="#ddd" onclick="selectPref('東北')"/>
-
-<!-- 関東 -->
-<path d="M170 180 L220 190 L220 240 L170 250 L150 210 Z"
-fill="#ddd" onclick="selectPref('東京')"/>
-
-<!-- 中部 -->
-<path d="M140 240 L170 230 L190 270 L160 310 L130 290 Z"
-fill="#ddd" onclick="selectPref('名古屋')"/>
-
-<!-- 近畿 -->
-<path d="M120 300 L160 310 L160 350 L120 360 L100 330 Z"
-fill="#ddd" onclick="selectPref('大阪')"/>
-
-<!-- 中国 -->
-<path d="M80 320 L120 330 L120 370 L80 380 L60 350 Z"
-fill="#ddd" onclick="selectPref('広島')"/>
-
-<!-- 四国 -->
-<path d="M130 360 L160 370 L150 400 L120 400 Z"
-fill="#ddd" onclick="selectPref('四国')"/>
-
-<!-- 九州 -->
-<path d="M70 400 L110 410 L120 470 L80 480 L60 440 Z"
-fill="#ddd" onclick="selectPref('福岡')"/>
-
-</svg>
-
-</div>
-
-</div>
-
 <script>
+// =========================
+// 元号データ（細かめ版）
+// =========================
+const eras = [
+  {name:"令和", start:2019},
+  {name:"平成", start:1989},
+  {name:"昭和", start:1926},
+  {name:"大正", start:1912},
+  {name:"明治", start:1868},
 
-/* ================= データ ================= */
+  // 幕末〜江戸後期
+  {name:"慶応", start:1865},
+  {name:"元治", start:1864},
+  {name:"文久", start:1861},
+  {name:"万延", start:1860},
+  {name:"安政", start:1854},
+  {name:"嘉永", start:1848},
+  {name:"弘化", start:1844},
+  {name:"天保", start:1830},
+  {name:"文政", start:1818},
+  {name:"文化", start:1804},
+  {name:"享和", start:1801},
+  {name:"寛政", start:1789},
+  {name:"天明", start:1781},
+  {name:"安永", start:1772},
+  {name:"明和", start:1764},
+  {name:"宝暦", start:1751},
+  {name:"延享", start:1744},
+  {name:"寛保", start:1741},
+  {name:"元文", start:1736},
+  {name:"享保", start:1716},
 
-let events=[]
-let mode="normal"
-let currentYear=1600
+  // 宝永など
+  {name:"正徳", start:1711},
+  {name:"宝永", start:1704},
+  {name:"元禄", start:1688},
+  {name:"貞享", start:1684},
+  {name:"天和", start:1681},
 
-/* ================= 元号 ================= */
+  // それ以前
+  {name:"江戸初期", start:1603},
+  {name:"安土桃山", start:1573},
+  {name:"室町", start:1336},
+  {name:"鎌倉", start:1185},
+  {name:"平安", start:794}
+];
 
-function gengou(y){
+// =========================
+// 和暦変換
+// =========================
+function toEra(year){
+  for(let i=0;i<eras.length;i++){
+    const e = eras[i];
+    const next = eras[i-1];
 
-if(y>=2019)return"令和"
-if(y>=1989)return"平成"
-if(y>=1926)return"昭和"
-if(y>=1912)return"大正"
-if(y>=1868)return"明治"
-if(y>=1603)return"江戸"
-if(y>=1467)return"戦国"
-if(y>=794)return"平安"
-if(y>=710)return"奈良"
-if(y>=538)return"飛鳥"
-if(y>=250)return"古墳"
-if(y>=-300)return"弥生"
-return"縄文"
+    if(year >= e.start){
+      return `${e.name}${year - e.start + 1}年`;
+    }
+  }
+  return "不明";
 }
 
-/* ================= 年表追加 ================= */
+// =========================
+// データ
+// =========================
+let data = JSON.parse(localStorage.getItem("timeline") || "[]");
 
+// 保存
+function save(){
+  localStorage.setItem("timeline", JSON.stringify(data));
+}
+
+// =========================
+// 追加
+// =========================
 function addEvent(){
+  const year = parseInt(document.getElementById("year").value);
+  const text = document.getElementById("text").value;
+  const category = document.getElementById("category").value;
 
-const year=parseInt(yearInput.value)
+  if(!year || !text) return;
 
-if(isNaN(year)){
-alert("年を入力")
-return
+  data.push({year, text, category});
+  update();
+
+  document.getElementById("year").value = "";
+  document.getElementById("text").value = "";
+  document.getElementById("category").value = "";
 }
 
-events.push({
-year,
-title:titleInput.value||"(なし)",
-place:placeInput.value||""
-})
+// =========================
+// 編集
+// =========================
+function editEvent(i){
+  const y = prompt("西暦", data[i].year);
+  const t = prompt("出来事", data[i].text);
+  const c = prompt("分類", data[i].category);
 
-yearInput.value=""
-titleInput.value=""
-placeInput.value=""
-
-render()
+  if(y && t){
+    data[i] = {
+      year: parseInt(y),
+      text: t,
+      category: c
+    };
+    update();
+  }
 }
 
-/* ================= 表示モード ================= */
-
-function setMode(m){
-mode=m
-render()
+// =========================
+// 削除
+// =========================
+function deleteEvent(i){
+  data.splice(i,1);
+  update();
 }
 
-/* ================= 年表描画 ================= */
+// =========================
+// 更新処理
+// =========================
+function update(){
+  data.sort((a,b)=>a.year-b.year);
+  save();
+  render();
+}
 
+// =========================
+// 描画
+// =========================
 function render(){
+  const tl = document.getElementById("timeline");
+  tl.innerHTML = "";
 
-const tl=document.getElementById("timeline")
-tl.innerHTML=""
+  data.forEach((d,i)=>{
+    const div = document.createElement("div");
+    div.className = "card";
 
-if(events.length===0)return
+    div.innerHTML = `
+      <div class="year">${d.year}</div>
+      <div class="era">${toEra(d.year)}</div>
+      <div class="category">📌 ${d.category || "未分類"}</div>
+      <div>${d.text}</div>
 
-events.sort((a,b)=>a.year-b.year)
+      <button class="small" onclick="editEvent(${i})">編集</button>
+      <button class="small" onclick="deleteEvent(${i})">削除</button>
+    `;
 
-let min=events[0].year
-let max=events[events.length-1].year
-
-events.forEach((e,i)=>{
-
-let y
-
-if(mode==="normal"){
-y=i*110
-}else{
-y=(e.year-min)/(max-min||1)*2000
+    tl.appendChild(div);
+  });
 }
 
-const div=document.createElement("div")
-div.className="event"
-div.style.top=y+"px"
-
-div.innerHTML=
-`<b>${gengou(e.year)} ${e.year}年</b><br>
-${e.title}<br>📍${e.place}`
-
-div.onclick=()=>{
-currentYear=e.year
-timeSlider.value=e.year
-updateTime()
-highlightPref(e.place)
-}
-
-tl.appendChild(div)
-
-})
-
-tl.style.height="2100px"
-}
-
-/* ================= 地図クリック ================= */
-
-function selectPref(name){
-
-placeInput.value=name
-highlightPref(name)
-}
-
-/* ================= ハイライト ================= */
-
-function highlightPref(name){
-
-document.querySelectorAll("svg rect")
-.forEach(r=>r.setAttribute("fill","#ddd"))
-
-const map={
-"北海道":0,
-"東北":1,
-"東京":2,
-"名古屋":3,
-"大阪":4,
-"広島":5,
-"四国":6,
-"福岡":7
-}
-
-const rect=document.querySelectorAll("svg rect")[map[name]]
-
-if(rect)rect.setAttribute("fill","red")
-}
-
-/* ================= 時代分類 ================= */
-
-function getEra(y){
-
-if(y>=1868)return"modern"
-if(y>=1600)return"edo"
-if(y>=1467)return"sengoku"
-if(y>=794)return"heian"
-return"ancient"
-}
-
-/* ================= スライダー ================= */
-
-function updateTime(){
-
-currentYear=Number(timeSlider.value)
-
-timeLabel.textContent=
-gengou(currentYear)+" "+currentYear+"年"
-
-updateMapByTime()
-}
-
-/* ================= 地図色変更 ================= */
-
-function updateMapByTime(){
-
-const era=getEra(currentYear)
-
-document.querySelectorAll("svg rect")
-.forEach(r=>{
-
-switch(era){
-
-case"modern":
-r.setAttribute("fill","#90caf9")
-break
-
-case"edo":
-r.setAttribute("fill","#a5d6a7")
-break
-
-case"sengoku":
-r.setAttribute("fill","#ffcc80")
-break
-
-case"heian":
-r.setAttribute("fill","#ce93d8")
-break
-
-default:
-r.setAttribute("fill","#eee")
-
-}
-
-})
-}
-
-updateTime()
-
+update();
 </script>
 
 </body>
