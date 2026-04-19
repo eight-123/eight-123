@@ -35,7 +35,7 @@ body{
 .page.active{ display:block; }
 
 /* ===================== */
-/* 歴史（そのまま） */
+/* 歴史（完全そのまま） */
 /* ===================== */
 #timeline{
   display:flex;
@@ -62,35 +62,28 @@ body{
 button.small{ font-size:12px; margin-top:5px; }
 
 /* ===================== */
-/* 理科（修正版ドラッグ） */
+/* 理科（ページ型キャンバス） */
 /* ===================== */
 #map{
   width:100%;
   height:500px;
   border:1px solid #ccc;
-  position:relative;
   background:#fafafa;
-  overflow:hidden;
+
+  display:flex;
+  gap:10px;
+  overflow-x:auto;
+  padding:10px;
 }
 
-.node{
-  position:absolute;
-  width:140px;
-  padding:6px;
-  font-size:12px;
-  background:#f7f7f7;
+.sc-page{
+  min-width:220px;
+  height:420px;
   border:1px solid #aaa;
-  border-radius:8px;
-  cursor:grab;
-  user-select:none;
-}
-
-/* 線 */
-.link-line{
-  position:absolute;
-  height:2px;
-  background:#555;
-  transform-origin:0 0;
+  border-radius:10px;
+  background:#f7f7f7;
+  padding:10px;
+  flex-shrink:0;
 }
 
 /* ===================== */
@@ -132,14 +125,14 @@ button.small{ font-size:12px; margin-top:5px; }
 </div>
 
 <!-- ===================== -->
-<!-- 理科（ドラッグ修正版） -->
+<!-- 理科（ページ型ノート） -->
 <!-- ===================== -->
 <div id="science" class="page">
 
-<h3>🧪 理科マインドマップ</h3>
+<h3>🧪 理科ノート（ページ型）</h3>
 
-<input id="sc_parent" placeholder="親テーマ">
-<input id="sc_child" placeholder="子テーマ">
+<input id="sc_parent" placeholder="単元（例：物理）">
+<input id="sc_child" placeholder="テーマ（例：力）">
 <input id="sc_text" placeholder="説明">
 <button onclick="addScience()">追加</button>
 
@@ -162,6 +155,7 @@ button.small{ font-size:12px; margin-top:5px; }
 </div>
 
 <script>
+
 // =====================
 // タブ
 // =====================
@@ -224,9 +218,10 @@ function renderHistory(){
 
   data.sort((a,b)=>a.year-b.year);
 
-  data.forEach((d,i)=>{
+  data.forEach(d=>{
     const div=document.createElement("div");
     div.className="card";
+
     div.innerHTML=`
       <div class="year">${d.year}</div>
       <div class="era">${toEra(d.year)}</div>
@@ -240,13 +235,9 @@ function renderHistory(){
 renderHistory();
 
 // =====================
-// 理科（ドラッグ完全修正版）
+// 理科（ページ型ノート完成版）
 // =====================
 let science=JSON.parse(localStorage.getItem("science")||"[]");
-let links=JSON.parse(localStorage.getItem("links")||"[]");
-
-let nodes={};
-let selected=null;
 
 function addScience(){
   const p=sc_parent.value;
@@ -259,9 +250,7 @@ function addScience(){
     id:Date.now(),
     parent:p,
     child:c,
-    text:t,
-    x:100+Math.random()*200,
-    y:100+Math.random()*200
+    text:t
   });
 
   saveScience();
@@ -272,157 +261,15 @@ function addScience(){
 
 function saveScience(){
   localStorage.setItem("science",JSON.stringify(science));
-  localStorage.setItem("links",JSON.stringify(links));
 }
 
-function renderScience(){
-  const map=document.getElementById("map");
-  map.innerHTML="";
-  nodes={};
-
-  const parents=[...new Set(science.map(s=>s.parent))];
-  const pos={};
-
-  parents.forEach((p,i)=>{
-    pos[p]={x:120,y:80+i*140};
-  });
-
-  science.forEach(s=>{
-
-    if(!nodes[s.parent]){
-      const pn=createNode("🌿 "+s.parent,pos[s.parent].x,pos[s.parent].y);
-      nodes[s.parent]=pn;
-      map.appendChild(pn.el);
-    }
-
-    const cn=createNode(s.child+"\n"+(s.text||""),s.x,s.y);
-    nodes[s.id]=cn;
-    map.appendChild(cn.el);
-
-    // クリックで選択→リンク
-    cn.el.onclick=(e)=>{
-      e.stopPropagation();
-      selectNode(s.id);
-    };
-
-    // ダブルクリック編集
-    cn.el.ondblclick=(e)=>{
-      e.stopPropagation();
-      editScience(s.id);
-    };
-
-    // 削除
-    const btn=document.createElement("button");
-    btn.innerText="削除";
-    btn.onclick=(e)=>{
-      e.stopPropagation();
-      deleteScience(s.id);
-    };
-    cn.el.appendChild(btn);
-
-    enableDrag(cn,s);
-  });
-
-  drawLinks();
-}
-
-function createNode(text,x,y){
-  const div=document.createElement("div");
-  div.className="node";
-  div.style.left=x+"px";
-  div.style.top=y+"px";
-  div.innerText=text;
-  return {el:div};
-}
-
-// ⭐ ここが修正ポイント（ドラッグ安定版）
-function enableDrag(node){
-  let offsetX=0,offsetY=0;
-
-  node.el.onmousedown=(e)=>{
-    const mapRect=document.getElementById("map").getBoundingClientRect();
-    const rect=node.el.getBoundingClientRect();
-
-    offsetX=e.clientX-rect.left;
-    offsetY=e.clientY-rect.top;
-
-    document.onmousemove=(e)=>{
-      let x=e.clientX-mapRect.left-offsetX;
-      let y=e.clientY-mapRect.top-offsetY;
-
-      node.el.style.left=x+"px";
-      node.el.style.top=y+"px";
-
-      science.forEach(s=>{
-        const n=nodes[s.id];
-        if(n){
-          s.x=parseInt(n.el.style.left);
-          s.y=parseInt(n.el.style.top);
-        }
-      });
-
-      saveScience();
-      drawLinks();
-    };
-
-    document.onmouseup=()=>{
-      document.onmousemove=null;
-    };
-  };
-}
-
-function selectNode(id){
-  if(!selected){
-    selected=id;
-    return;
-  }
-
-  if(selected===id){
-    selected=null;
-    return;
-  }
-
-  links.push({from:selected,to:id});
-  selected=null;
-
-  saveScience();
-  renderScience();
-}
-
-function drawLinks(){
-  document.querySelectorAll(".link-line").forEach(l=>l.remove());
-
-  links.forEach(l=>{
-    const a=nodes[l.from];
-    const b=nodes[l.to];
-    if(!a||!b)return;
-
-    const line=document.createElement("div");
-    line.className="link-line";
-
-    const x1=parseFloat(a.el.style.left)+70;
-    const y1=parseFloat(a.el.style.top)+20;
-    const x2=parseFloat(b.el.style.left)+70;
-    const y2=parseFloat(b.el.style.top)+20;
-
-    const len=Math.hypot(x2-x1,y2-y1);
-    const ang=Math.atan2(y2-y1,x2-x1)*180/Math.PI;
-
-    line.style.width=len+"px";
-    line.style.left=x1+"px";
-    line.style.top=y1+"px";
-    line.style.transform=`rotate(${ang}deg)`;
-
-    map.appendChild(line);
-  });
-}
-
+// 編集
 function editScience(id){
   const s=science.find(x=>x.id===id);
   if(!s)return;
 
-  const p=prompt("親",s.parent);
-  const c=prompt("子",s.child);
+  const p=prompt("単元",s.parent);
+  const c=prompt("テーマ",s.child);
   const t=prompt("説明",s.text);
 
   if(p!==null)s.parent=p;
@@ -433,11 +280,34 @@ function editScience(id){
   renderScience();
 }
 
+// 削除
 function deleteScience(id){
   science=science.filter(s=>s.id!==id);
-  links=links.filter(l=>l.from!==id&&l.to!==id);
   saveScience();
   renderScience();
+}
+
+// 描画（横並びページ）
+function renderScience(){
+  const map=document.getElementById("map");
+  map.innerHTML="";
+
+  science.forEach(s=>{
+    const page=document.createElement("div");
+    page.className="sc-page";
+
+    page.innerHTML=`
+      <b>📘 ${s.parent}</b>
+      <hr>
+      ➜ ${s.child}<br><br>
+      ${s.text||""}
+      <br><br>
+      <button onclick="editScience(${s.id})">編集</button>
+      <button onclick="deleteScience(${s.id})">削除</button>
+    `;
+
+    map.appendChild(page);
+  });
 }
 
 renderScience();
@@ -477,10 +347,7 @@ function renderMath(){
     div.innerHTML=`<b>${c}</b><br>`;
 
     g[c].forEach(m=>{
-      div.innerHTML+=`
-        ➗ ${m.t}<br>
-        ${m.d}<br><br>
-      `;
+      div.innerHTML+=`➗ ${m.t}<br>${m.d}<br><br>`;
     });
 
     el.appendChild(div);
@@ -488,6 +355,7 @@ function renderMath(){
 }
 
 renderMath();
+
 </script>
 
 </body>
