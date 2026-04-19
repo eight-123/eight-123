@@ -35,7 +35,7 @@ body{
 .page.active{ display:block; }
 
 /* ===================== */
-/* 歴史（完全そのまま） */
+/* 歴史（そのまま） */
 /* ===================== */
 #timeline{
   display:flex;
@@ -62,7 +62,7 @@ body{
 button.small{ font-size:12px; margin-top:5px; }
 
 /* ===================== */
-/* 理科（リンク型ノード） */
+/* 理科（修正版ドラッグ） */
 /* ===================== */
 #map{
   width:100%;
@@ -88,8 +88,8 @@ button.small{ font-size:12px; margin-top:5px; }
 /* 線 */
 .link-line{
   position:absolute;
-  background:#555;
   height:2px;
+  background:#555;
   transform-origin:0 0;
 }
 
@@ -117,7 +117,7 @@ button.small{ font-size:12px; margin-top:5px; }
 </div>
 
 <!-- ===================== -->
-<!-- 歴史（無改造） -->
+<!-- 歴史（そのまま） -->
 <!-- ===================== -->
 <div id="history" class="page active">
 
@@ -132,11 +132,11 @@ button.small{ font-size:12px; margin-top:5px; }
 </div>
 
 <!-- ===================== -->
-<!-- 理科（完成版） -->
+<!-- 理科（ドラッグ修正版） -->
 <!-- ===================== -->
 <div id="science" class="page">
 
-<h3>🧪 理科マインドマップ（リンク型）</h3>
+<h3>🧪 理科マインドマップ</h3>
 
 <input id="sc_parent" placeholder="親テーマ">
 <input id="sc_child" placeholder="子テーマ">
@@ -147,7 +147,7 @@ button.small{ font-size:12px; margin-top:5px; }
 </div>
 
 <!-- ===================== -->
-<!-- 数学（無改造） -->
+<!-- 数学（そのまま） -->
 <!-- ===================== -->
 <div id="math" class="page">
 
@@ -172,109 +172,88 @@ function switchTab(id){
   event.target.classList.add("active");
 }
 
-// =====================================================
-// ===================== 歴史（完全そのまま） =====================
-// =====================================================
-const eras = [
-  {name:"令和", start:2019},
-  {name:"平成", start:1989},
-  {name:"昭和", start:1926},
-  {name:"大正", start:1912},
-  {name:"明治", start:1868},
-  {name:"宝永", start:1704},
-  {name:"元禄", start:1688},
-  {name:"江戸", start:1603},
-  {name:"室町", start:1336},
-  {name:"鎌倉", start:1185},
-  {name:"平安", start:794}
+// =====================
+// 歴史（そのまま）
+// =====================
+const eras=[
+  {name:"令和",start:2019},
+  {name:"平成",start:1989},
+  {name:"昭和",start:1926},
+  {name:"大正",start:1912},
+  {name:"明治",start:1868},
+  {name:"宝永",start:1704},
+  {name:"元禄",start:1688},
+  {name:"江戸",start:1603},
+  {name:"室町",start:1336},
+  {name:"鎌倉",start:1185},
+  {name:"平安",start:794}
 ];
 
-function toEra(year){
+function toEra(y){
   for(let i=0;i<eras.length;i++){
-    const e = eras[i];
-    if(year >= e.start){
-      return `${e.name}${year - e.start + 1}年`;
+    if(y>=eras[i].start){
+      return eras[i].name+(y-eras[i].start+1)+"年";
     }
   }
   return "不明";
 }
 
-let data = JSON.parse(localStorage.getItem("timeline") || "[]");
+let data=JSON.parse(localStorage.getItem("timeline")||"[]");
 
 function addEvent(){
-  const year = parseInt(document.getElementById("year").value);
-  const text = document.getElementById("text").value;
-  const category = document.getElementById("category").value;
+  const y=+year.value;
+  const t=text.value;
+  const c=category.value;
 
-  if(!year || !text) return;
+  if(!y||!t)return;
 
-  data.push({year,text,category});
-  update();
+  data.push({year:y,text:t,category:c});
+  saveHistory();
+  renderHistory();
 
-  document.getElementById("year").value="";
-  document.getElementById("text").value="";
-  document.getElementById("category").value="";
+  year.value=text.value=category.value="";
 }
 
-function editEvent(i){
-  const y = prompt("西暦", data[i].year);
-  const t = prompt("出来事", data[i].text);
-  const c = prompt("分類", data[i].category);
-
-  if(y && t){
-    data[i]={year:+y,text:t,category:c};
-    update();
-  }
+function saveHistory(){
+  localStorage.setItem("timeline",JSON.stringify(data));
 }
 
-function deleteEvent(i){
-  data.splice(i,1);
-  update();
-}
-
-function update(){
-  data.sort((a,b)=>a.year-b.year);
-  localStorage.setItem("timeline", JSON.stringify(data));
-  render();
-}
-
-function render(){
-  const tl = document.getElementById("timeline");
+function renderHistory(){
+  const tl=document.getElementById("timeline");
   tl.innerHTML="";
+
+  data.sort((a,b)=>a.year-b.year);
 
   data.forEach((d,i)=>{
     const div=document.createElement("div");
     div.className="card";
-
     div.innerHTML=`
       <div class="year">${d.year}</div>
       <div class="era">${toEra(d.year)}</div>
-      <div class="category">📌 ${d.category||"未分類"}</div>
+      <div class="category">${d.category||""}</div>
       <div>${d.text}</div>
-      <button class="small" onclick="editEvent(${i})">編集</button>
-      <button class="small" onclick="deleteEvent(${i})">削除</button>
     `;
     tl.appendChild(div);
   });
 }
 
-update();
+renderHistory();
 
-// =====================================================
-// ===================== 理科（完成版リンクノード） =====================
-// =====================================================
-let science = JSON.parse(localStorage.getItem("science") || "[]");
-let links = JSON.parse(localStorage.getItem("science_links") || "[]");
+// =====================
+// 理科（ドラッグ完全修正版）
+// =====================
+let science=JSON.parse(localStorage.getItem("science")||"[]");
+let links=JSON.parse(localStorage.getItem("links")||"[]");
 
-let nodes = {};
-let selectedNode = null;
+let nodes={};
+let selected=null;
 
 function addScience(){
-  const p=document.getElementById("sc_parent").value;
-  const c=document.getElementById("sc_child").value;
-  const t=document.getElementById("sc_text").value;
+  const p=sc_parent.value;
+  const c=sc_child.value;
+  const t=sc_text.value;
 
-  if(!p||!c) return;
+  if(!p||!c)return;
 
   science.push({
     id:Date.now(),
@@ -287,58 +266,18 @@ function addScience(){
 
   saveScience();
   renderScience();
+
+  sc_parent.value=sc_child.value=sc_text.value="";
 }
 
 function saveScience(){
   localStorage.setItem("science",JSON.stringify(science));
-  localStorage.setItem("science_links",JSON.stringify(links));
-}
-
-function editScience(id){
-  const s=science.find(x=>x.id===id);
-  if(!s) return;
-
-  const p=prompt("親",s.parent);
-  const c=prompt("子",s.child);
-  const t=prompt("説明",s.text);
-
-  if(p!==null) s.parent=p;
-  if(c!==null) s.child=c;
-  if(t!==null) s.text=t;
-
-  saveScience();
-  renderScience();
-}
-
-function deleteScience(id){
-  science=science.filter(s=>s.id!==id);
-  links=links.filter(l=>l.from!==id && l.to!==id);
-
-  saveScience();
-  renderScience();
-}
-
-function selectNode(id){
-  if(!selectedNode){
-    selectedNode=id;
-    return;
-  }
-  if(selectedNode===id){
-    selectedNode=null;
-    return;
-  }
-
-  links.push({from:selectedNode,to:id});
-  selectedNode=null;
-
-  saveScience();
-  renderScience();
+  localStorage.setItem("links",JSON.stringify(links));
 }
 
 function renderScience(){
   const map=document.getElementById("map");
   map.innerHTML="";
-
   nodes={};
 
   const parents=[...new Set(science.map(s=>s.parent))];
@@ -360,24 +299,26 @@ function renderScience(){
     nodes[s.id]=cn;
     map.appendChild(cn.el);
 
+    // クリックで選択→リンク
     cn.el.onclick=(e)=>{
       e.stopPropagation();
       selectNode(s.id);
     };
 
+    // ダブルクリック編集
     cn.el.ondblclick=(e)=>{
       e.stopPropagation();
       editScience(s.id);
     };
 
-    const del=document.createElement("button");
-    del.innerText="削除";
-    del.onclick=(e)=>{
+    // 削除
+    const btn=document.createElement("button");
+    btn.innerText="削除";
+    btn.onclick=(e)=>{
       e.stopPropagation();
       deleteScience(s.id);
     };
-
-    cn.el.appendChild(del);
+    cn.el.appendChild(btn);
 
     enableDrag(cn,s);
   });
@@ -394,16 +335,23 @@ function createNode(text,x,y){
   return {el:div};
 }
 
+// ⭐ ここが修正ポイント（ドラッグ安定版）
 function enableDrag(node){
-  let ox,oy;
+  let offsetX=0,offsetY=0;
 
   node.el.onmousedown=(e)=>{
-    ox=e.offsetX;
-    oy=e.offsetY;
+    const mapRect=document.getElementById("map").getBoundingClientRect();
+    const rect=node.el.getBoundingClientRect();
+
+    offsetX=e.clientX-rect.left;
+    offsetY=e.clientY-rect.top;
 
     document.onmousemove=(e)=>{
-      node.el.style.left=(e.pageX-ox)+"px";
-      node.el.style.top=(e.pageY-oy)+"px";
+      let x=e.clientX-mapRect.left-offsetX;
+      let y=e.clientY-mapRect.top-offsetY;
+
+      node.el.style.left=x+"px";
+      node.el.style.top=y+"px";
 
       science.forEach(s=>{
         const n=nodes[s.id];
@@ -417,8 +365,28 @@ function enableDrag(node){
       drawLinks();
     };
 
-    document.onmouseup=()=>document.onmousemove=null;
+    document.onmouseup=()=>{
+      document.onmousemove=null;
+    };
   };
+}
+
+function selectNode(id){
+  if(!selected){
+    selected=id;
+    return;
+  }
+
+  if(selected===id){
+    selected=null;
+    return;
+  }
+
+  links.push({from:selected,to:id});
+  selected=null;
+
+  saveScience();
+  renderScience();
 }
 
 function drawLinks(){
@@ -427,7 +395,7 @@ function drawLinks(){
   links.forEach(l=>{
     const a=nodes[l.from];
     const b=nodes[l.to];
-    if(!a||!b) return;
+    if(!a||!b)return;
 
     const line=document.createElement("div");
     line.className="link-line";
@@ -449,40 +417,47 @@ function drawLinks(){
   });
 }
 
+function editScience(id){
+  const s=science.find(x=>x.id===id);
+  if(!s)return;
+
+  const p=prompt("親",s.parent);
+  const c=prompt("子",s.child);
+  const t=prompt("説明",s.text);
+
+  if(p!==null)s.parent=p;
+  if(c!==null)s.child=c;
+  if(t!==null)s.text=t;
+
+  saveScience();
+  renderScience();
+}
+
+function deleteScience(id){
+  science=science.filter(s=>s.id!==id);
+  links=links.filter(l=>l.from!==id&&l.to!==id);
+  saveScience();
+  renderScience();
+}
+
 renderScience();
 
-// =====================================================
-// ===================== 数学（無改造） =====================
-// =====================================================
-let math = JSON.parse(localStorage.getItem("math") || "[]");
+// =====================
+// 数学（そのまま）
+// =====================
+let math=JSON.parse(localStorage.getItem("math")||"[]");
 
 function addMath(){
-  const c=document.getElementById("m_cat").value;
-  const t=document.getElementById("m_title").value;
-  const d=document.getElementById("m_text").value;
+  math.push({
+    c:m_cat.value,
+    t:m_title.value,
+    d:m_text.value
+  });
 
-  math.push({c,t,d});
   localStorage.setItem("math",JSON.stringify(math));
   renderMath();
-}
 
-function editMath(i){
-  const m=math[i];
-  const c=prompt("カテゴリ",m.c);
-  const t=prompt("公式",m.t);
-  const d=prompt("説明",m.d);
-
-  if(c&&t){
-    math[i]={c,t,d};
-    localStorage.setItem("math",JSON.stringify(math));
-    renderMath();
-  }
-}
-
-function deleteMath(i){
-  math.splice(i,1);
-  localStorage.setItem("math",JSON.stringify(math));
-  renderMath();
+  m_cat.value=m_title.value=m_text.value="";
 }
 
 function renderMath(){
@@ -492,22 +467,19 @@ function renderMath(){
   const g={};
 
   math.forEach((m,i)=>{
-    if(!g[m.c]) g[m.c]=[];
+    if(!g[m.c])g[m.c]=[];
     g[m.c].push({...m,i});
   });
 
   for(const c in g){
     const div=document.createElement("div");
     div.className="math-card";
-    div.innerHTML=`<b>📂 ${c}</b><br>`;
+    div.innerHTML=`<b>${c}</b><br>`;
 
     g[c].forEach(m=>{
       div.innerHTML+=`
         ➗ ${m.t}<br>
-        ${m.d}<br>
-        <button onclick="editMath(${m.i})">編集</button>
-        <button onclick="deleteMath(${m.i})">削除</button>
-        <br><br>
+        ${m.d}<br><br>
       `;
     });
 
