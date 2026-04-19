@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>学習OS（完成版）</title>
+<title>学習OS（完成安定版）</title>
 
 <style>
 body{
@@ -58,10 +58,8 @@ body{
 .era{ font-size:12px; color:#666; }
 .category{ font-size:12px; color:#0077cc; }
 
-button.small{ font-size:12px; margin-top:5px; }
-
 /* ===================== */
-/* 理科（ノートUI） */
+/* 理科ノート */
 /* ===================== */
 #pageList div{
   border:1px solid #aaa;
@@ -77,7 +75,7 @@ button.small{ font-size:12px; margin-top:5px; }
   width:100%;
   height:500px;
   background:white;
-  touch-action:none;
+  touch-action:none; /* スクロール完全防止 */
 }
 
 /* ===================== */
@@ -119,34 +117,31 @@ button.small{ font-size:12px; margin-top:5px; }
 </div>
 
 <!-- ===================== -->
-<!-- 理科（ページノート） -->
+<!-- 理科（完全ノート） -->
 <!-- ===================== -->
 <div id="science" class="page">
 
 <h3>🧪 理科ノート</h3>
 
 <div id="listView">
+  <input id="pageTitle" placeholder="ページ名（例：力）">
+  <button onclick="createPage()">＋作成</button>
 
-<input id="pageTitle" placeholder="ページ名（例：力）">
-<button onclick="createPage()">＋作成</button>
-
-<div id="pageList"></div>
-
+  <div id="pageList"></div>
 </div>
 
 <div id="editorView" style="display:none;">
+  <h4 id="nowTitle"></h4>
 
-<h4 id="nowTitle"></h4>
+  <div style="margin-bottom:10px;">
+    <button onclick="setTool('pen')">✏</button>
+    <button onclick="setTool('bold')">🖊</button>
+    <button onclick="setTool('eraser')">🧽</button>
+    <button onclick="deletePage()">🗑 削除</button>
+    <button onclick="backToList()">←戻る</button>
+  </div>
 
-<div style="margin-bottom:10px;">
-<button onclick="setTool('pen')">✏</button>
-<button onclick="setTool('bold')">🖊</button>
-<button onclick="setTool('eraser')">🧽</button>
-<button onclick="backToList()">←戻る</button>
-</div>
-
-<canvas id="canvas"></canvas>
-
+  <canvas id="canvas"></canvas>
 </div>
 
 </div>
@@ -210,6 +205,7 @@ function addEvent(){
   const y=+year.value;
   const t=text.value;
   const c=category.value;
+
   if(!y||!t)return;
 
   data.push({year:y,text:t,category:c});
@@ -239,7 +235,7 @@ function renderHistory(){
 renderHistory();
 
 /* =====================
-理科（完全ページノート）
+理科（安定ノート）
 ===================== */
 let pages = JSON.parse(localStorage.getItem("science_pages") || "[]");
 
@@ -252,54 +248,55 @@ let ctx = canvas.getContext("2d");
 let drawing = false;
 let stroke = null;
 
-/* 初期 */
-if(pages.length===0) pages.push({title:"サンプル",strokes:[]});
+if(pages.length === 0){
+  pages.push({title:"ノート1",strokes:[]});
+}
 
 resize();
 renderList();
 
 /* サイズ */
 function resize(){
-  const r=canvas.getBoundingClientRect();
-  canvas.width=r.width;
-  canvas.height=500;
+  const r = canvas.getBoundingClientRect();
+  canvas.width = r.width;
+  canvas.height = 500;
 }
-window.addEventListener("resize",resize);
+window.addEventListener("resize", resize);
 
 /* =====================
 一覧
 ===================== */
 function renderList(){
-  const el=document.getElementById("pageList");
-  el.innerHTML="";
+  const el = document.getElementById("pageList");
+  el.innerHTML = "";
 
   pages.forEach((p,i)=>{
-    const div=document.createElement("div");
-    div.innerText="📘 "+p.title;
-    div.onclick=()=>openPage(i);
+    const div = document.createElement("div");
+    div.innerText = "📘 " + p.title;
+    div.onclick = () => openPage(i);
     el.appendChild(div);
   });
 }
 
 /* 作成 */
 function createPage(){
-  const t=pageTitle.value;
-  if(!t)return;
+  const t = pageTitle.value;
+  if(!t) return;
 
   pages.push({title:t,strokes:[]});
-  localStorage.setItem("science_pages",JSON.stringify(pages));
-  pageTitle.value="";
+  save();
   renderList();
+  pageTitle.value = "";
 }
 
 /* 開く */
 function openPage(i){
-  current=i;
+  current = i;
 
-  listView.style.display="none";
-  editorView.style.display="block";
+  listView.style.display = "none";
+  editorView.style.display = "block";
 
-  nowTitle.innerText=pages[i].title;
+  nowTitle.innerText = pages[i].title;
 
   drawPage();
 }
@@ -309,79 +306,106 @@ function backToList(){
   save();
   renderList();
 
-  listView.style.display="block";
-  editorView.style.display="none";
+  listView.style.display = "block";
+  editorView.style.display = "none";
 }
 
-/* =====================
-描画
-===================== */
-function setTool(t){ tool=t; }
+/* 削除 */
+function deletePage(){
+  if(current === null) return;
 
+  if(!confirm("削除する？")) return;
+
+  pages.splice(current,1);
+
+  if(pages.length === 0){
+    pages.push({title:"ノート1",strokes:[]});
+  }
+
+  current = null;
+
+  save();
+  renderList();
+  backToList();
+}
+
+/* ツール */
+function setTool(t){
+  tool = t;
+}
+
+/* 座標安定 */
 function pos(e){
-  const r=canvas.getBoundingClientRect();
+  const r = canvas.getBoundingClientRect();
   return {
     x:(e.touches?e.touches[0].clientX:e.clientX)-r.left,
     y:(e.touches?e.touches[0].clientY:e.clientY)-r.top
   };
 }
 
-/* 再描画 */
+/* 描画再生 */
 function drawPage(){
   ctx.clearRect(0,0,canvas.width,canvas.height);
 
-  const p=pages[current];
-  if(!p)return;
+  const p = pages[current];
+  if(!p) return;
 
   p.strokes.forEach(s=>{
     ctx.lineCap="round";
     ctx.lineJoin="round";
 
-    ctx.globalCompositeOperation=
-      s.tool==="eraser"?"destination-out":"source-over";
+    ctx.globalCompositeOperation =
+      s.tool==="eraser" ? "destination-out" : "source-over";
 
-    ctx.lineWidth=
-      s.tool==="bold"?6:
-      s.tool==="pen"?2:20;
+    ctx.lineWidth =
+      s.tool==="bold" ? 6 :
+      s.tool==="pen" ? 2 : 20;
 
     ctx.beginPath();
+
     s.points.forEach((pt,i)=>{
-      if(i===0)ctx.moveTo(pt.x,pt.y);
+      if(i===0) ctx.moveTo(pt.x,pt.y);
       else ctx.lineTo(pt.x,pt.y);
     });
+
     ctx.stroke();
   });
 }
 
 /* 描画 */
 canvas.addEventListener("mousedown",start);
-canvas.addEventListener("touchstart",start);
+canvas.addEventListener("touchstart",start,{passive:false});
 
 function start(e){
-  drawing=true;
-  stroke={tool:tool,points:[]};
+  drawing = true;
+
+  stroke = {
+    tool: tool,
+    points: []
+  };
+
   stroke.points.push(pos(e));
 }
 
 canvas.addEventListener("mousemove",draw);
-canvas.addEventListener("touchmove",draw);
+canvas.addEventListener("touchmove",draw,{passive:false});
 
 function draw(e){
-  if(!drawing)return;
+  if(!drawing) return;
 
-  const p=pos(e);
-  stroke.points.push(p);
+  e.preventDefault();
+
+  stroke.points.push(pos(e));
 
   drawPage();
 }
 
-/* 終了 */
 canvas.addEventListener("mouseup",end);
 canvas.addEventListener("touchend",end);
 
 function end(){
-  if(!drawing)return;
-  drawing=false;
+  if(!drawing) return;
+  drawing = false;
 
   pages[current].strokes.push(stroke);
   save();
@@ -393,7 +417,7 @@ function save(){
 }
 
 /* =====================
-数学（そのまま）
+数学
 ===================== */
 let math=JSON.parse(localStorage.getItem("math")||"[]");
 
