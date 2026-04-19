@@ -39,16 +39,9 @@ body{
   display: block;
 }
 
-/* カード */
-.card{
-  border: 1px solid #aaa;
-  border-radius: 10px;
-  padding: 10px;
-  margin: 5px 0;
-  background: #f7f7f7;
-}
-
-/* 社会 */
+/* ===================== */
+/* 社会（年表） */
+/* ===================== */
 #timeline{
   display: flex;
   gap: 10px;
@@ -66,18 +59,46 @@ body{
   flex-shrink: 0;
 }
 
-/* ツリー（理科） */
-.tree{
-  margin-left: 20px;
-  border-left: 2px solid #aaa;
-  padding-left: 10px;
+/* ===================== */
+/* 理科（マインドマップ） */
+/* ===================== */
+#map{
+  width: 100%;
+  height: 500px;
+  border: 1px solid #ccc;
+  background: #fafafa;
+}
+
+.node-box{
+  background: #f7f7f7;
+  border: 1px solid #aaa;
+  border-radius: 8px;
+  padding: 6px;
+  font-size: 12px;
+  width: 120px;
+}
+
+line{
+  stroke: #666;
+  stroke-width: 1.5;
+}
+
+/* ===================== */
+/* 数学 */
+/* ===================== */
+.card{
+  border: 1px solid #aaa;
+  border-radius: 10px;
+  padding: 10px;
+  margin: 5px 0;
+  background: #f7f7f7;
 }
 </style>
 </head>
 
 <body>
 
-<h2>📚 学習OS（社会・理科・数学）</h2>
+<h2>📚 学習OS（統合版）</h2>
 
 <!-- タブ -->
 <div class="tabs">
@@ -87,7 +108,7 @@ body{
 </div>
 
 <!-- ===================== -->
-<!-- 社会（年表） -->
+<!-- 社会 -->
 <!-- ===================== -->
 <div id="social" class="page active">
 
@@ -101,28 +122,29 @@ body{
 </div>
 
 <!-- ===================== -->
-<!-- 理科（マインドマップ） -->
+<!-- 理科 -->
 <!-- ===================== -->
 <div id="science" class="page">
 
 <h3>🧪 理科（マインドマップ）</h3>
 
-<input id="sc_title" placeholder="テーマ">
-<input id="sc_parent" placeholder="親（なければ空）">
-<input id="sc_text" placeholder="内容">
+<input id="sc_parent" placeholder="親テーマ（例：光）">
+<input id="sc_child" placeholder="子テーマ（例：反射）">
+<input id="sc_text" placeholder="説明">
 <button onclick="addScience()">追加</button>
 
-<div id="scienceList"></div>
+<svg id="map"></svg>
+
 </div>
 
 <!-- ===================== -->
-<!-- 数学（公式） -->
+<!-- 数学 -->
 <!-- ===================== -->
 <div id="math" class="page">
 
 <h3>➗ 数学（公式大全）</h3>
 
-<input id="m_cat" placeholder="カテゴリ（例：図形）">
+<input id="m_cat" placeholder="カテゴリ">
 <input id="m_title" placeholder="公式名">
 <input id="m_text" placeholder="内容">
 <button onclick="addMath()">追加</button>
@@ -132,15 +154,11 @@ body{
 
 <script>
 // =====================
-// タブ切替
+// タブ
 // =====================
 function switchTab(id){
-  document.querySelectorAll(".page").forEach(p=>{
-    p.classList.remove("active");
-  });
-  document.querySelectorAll(".tab").forEach(t=>{
-    t.classList.remove("active");
-  });
+  document.querySelectorAll(".page").forEach(p=>p.classList.remove("active"));
+  document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
 
   document.getElementById(id).classList.add("active");
   event.target.classList.add("active");
@@ -182,34 +200,75 @@ function renderSocial(){
 }
 
 // =====================
-// 理科（ツリー構造）
+// 理科（ビジュアルマインドマップ）
 // =====================
+let positions = {};
+
 function addScience(){
-  const title = document.getElementById("sc_title").value;
   const parent = document.getElementById("sc_parent").value;
+  const child = document.getElementById("sc_child").value;
   const text = document.getElementById("sc_text").value;
 
-  science.push({title,parent,text});
+  if(!parent || !child) return;
+
+  science.push({parent,child,text});
   localStorage.setItem("science", JSON.stringify(science));
+
   renderScience();
 }
 
 function renderScience(){
-  const el = document.getElementById("scienceList");
-  el.innerHTML = "";
+  const svg = document.getElementById("map");
+  svg.innerHTML = "";
+  positions = {};
 
-  science.forEach(d=>{
-    const div = document.createElement("div");
-    div.className = "card";
+  let parents = [...new Set(science.map(s=>s.parent))];
 
-    div.innerHTML = `
-      <b>${d.title}</b><br>
-      ${d.parent ? "↳ "+d.parent+"<br>" : ""}
-      ${d.text}
-    `;
+  let xBase = 150;
 
-    el.appendChild(div);
+  parents.forEach((p,i)=>{
+    positions[p] = {x:xBase, y:80 + i*140};
   });
+
+  science.forEach((d,i)=>{
+    const px = positions[d.parent].x;
+    const py = positions[d.parent].y;
+
+    const cx = px + 250;
+    const cy = py + (i%3)*40;
+
+    drawLine(svg, px, py, cx, cy);
+
+    drawBox(svg, d.parent, px, py);
+    drawBox(svg, d.child + "\n" + d.text, cx, cy);
+  });
+}
+
+// 線
+function drawLine(svg,x1,y1,x2,y2){
+  const line = document.createElementNS("http://www.w3.org/2000/svg","line");
+  line.setAttribute("x1",x1);
+  line.setAttribute("y1",y1);
+  line.setAttribute("x2",x2);
+  line.setAttribute("y2",y2);
+  svg.appendChild(line);
+}
+
+// ノード
+function drawBox(svg,text,x,y){
+  const fo = document.createElementNS("http://www.w3.org/2000/svg","foreignObject");
+
+  fo.setAttribute("x",x);
+  fo.setAttribute("y",y);
+  fo.setAttribute("width",130);
+  fo.setAttribute("height",60);
+
+  const div = document.createElement("div");
+  div.className = "node-box";
+  div.innerText = text;
+
+  fo.appendChild(div);
+  svg.appendChild(fo);
 }
 
 // =====================
@@ -232,17 +291,12 @@ function renderMath(){
   math.forEach(d=>{
     const div = document.createElement("div");
     div.className = "card";
-
-    div.innerHTML = `
-      <b>[${d.cat}] ${d.title}</b><br>
-      ${d.text}
-    `;
-
+    div.innerHTML = `<b>[${d.cat}] ${d.title}</b><br>${d.text}`;
     el.appendChild(div);
   });
 }
 
-// 初期表示
+// 初期
 renderSocial();
 renderScience();
 renderMath();
