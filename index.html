@@ -2,55 +2,64 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>年表ツール</title>
-
-<link rel="stylesheet"
- href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+<title>年表ツール（安全版）</title>
 
 <style>
 body{
-  margin:0;
-  font-family:sans-serif;
-  display:flex;
-  height:100vh;
+margin:0;
+font-family:sans-serif;
+display:flex;
+height:100vh;
 }
 
+/* ===== 年表 ===== */
+
 #left{
-  width:60%;
-  overflow-y:auto;
-  background:#f5f5f5;
-  padding:20px;
+width:65%;
+overflow-y:auto;
+background:#f5f5f5;
+padding:20px;
 }
 
 #timeline{
-  position:relative;
-  border-left:4px solid black;
-  margin-left:40px;
+position:relative;
+border-left:4px solid black;
+margin-left:40px;
 }
 
 .event{
-  position:absolute;
-  background:white;
-  padding:8px;
-  border-radius:6px;
-  box-shadow:0 0 5px #aaa;
-  cursor:pointer;
-  width:300px;
+position:absolute;
+background:white;
+padding:10px;
+border-radius:6px;
+box-shadow:0 0 6px #aaa;
+cursor:pointer;
+width:320px;
 }
+
+.event:hover{
+background:#e8f2ff;
+}
+
+/* ===== 地図メニュー ===== */
 
 #right{
-  width:40%;
-  display:flex;
-  flex-direction:column;
+width:35%;
+padding:20px;
+background:#ffffff;
+border-left:2px solid #ddd;
 }
 
-#map{flex:1;}
+input,button{
+margin:4px;
+padding:6px;
+}
 </style>
 </head>
 
 <body>
 
-<!-- ===== 左 ===== -->
+<!-- ========= 年表 ========= -->
 
 <div id="left">
 
@@ -70,39 +79,30 @@ body{
 
 </div>
 
-<!-- ===== 右 ===== -->
+<!-- ========= 地図 ========= -->
 
 <div id="right">
 
-<h3>地図</h3>
+<h3>地図メニュー</h3>
 
-<input id="mapSearch">
-<button onclick="searchPlace()">検索</button>
+<input id="mapSearch" placeholder="地名検索">
+<button onclick="searchPlace()">Google Mapsで開く</button>
 
-<div id="map"></div>
+<p>
+※地図はGoogle Mapsを使用します<br>
+（外部サービスへ移動します）
+</p>
 
 </div>
 
-<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-
 <script>
 
-/* ========= データ ========= */
+/* ===== データ ===== */
 
 let events=[]
 let mode="normal"
 
-/* ========= 地図 ========= */
-
-const map=L.map('map').setView([35,135],5)
-
-L.tileLayer(
-'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
-).addTo(map)
-
-let marker=null
-
-/* ========= 年号 ========= */
+/* ===== 年号 ===== */
 
 function gengou(y){
 
@@ -122,42 +122,40 @@ if(y>=-300)return"弥生"
 return"縄文"
 }
 
-/* ========= 追加 ========= */
+/* ===== 追加 ===== */
 
 function addEvent(){
 
-const yearEl=document.getElementById("yearInput")
-const titleEl=document.getElementById("titleInput")
-const placeEl=document.getElementById("placeInput")
-
-const year=parseInt(yearEl.value)
+const year=parseInt(
+document.getElementById("yearInput").value
+)
 
 if(isNaN(year)){
-alert("年を入れて！")
+alert("年を入力して")
 return
 }
 
 events.push({
 year,
-title:titleEl.value||"(タイトルなし)",
-place:placeEl.value||""
+title:document.getElementById("titleInput").value||"(なし)",
+place:document.getElementById("placeInput").value||""
 })
 
-yearEl.value=""
-titleEl.value=""
-placeEl.value=""
+yearInput.value=""
+titleInput.value=""
+placeInput.value=""
 
 render()
 }
 
-/* ========= モード ========= */
+/* ===== 表示モード ===== */
 
 function setMode(m){
 mode=m
 render()
 }
 
-/* ========= 描画 ========= */
+/* ===== 描画 ===== */
 
 function render(){
 
@@ -176,7 +174,7 @@ events.forEach((e,i)=>{
 let y
 
 if(mode==="normal"){
-y=i*100
+y=i*110
 }else{
 y=(e.year-min)/(max-min||1)*2000
 }
@@ -189,7 +187,7 @@ div.innerHTML=
 `<b>${gengou(e.year)} ${e.year}年</b><br>
 ${e.title}<br>📍${e.place}`
 
-div.onclick=()=>jumpMap(e.place)
+div.onclick=()=>openMap(e.place)
 
 tl.appendChild(div)
 })
@@ -197,37 +195,22 @@ tl.appendChild(div)
 tl.style.height="2100px"
 }
 
-/* ========= 地図ジャンプ ========= */
+/* ===== Google Mapsへ ===== */
 
-async function jumpMap(place){
+function openMap(place){
 
 if(!place)return
 
-const res=await fetch(
-`https://nominatim.openstreetmap.org/search?format=json&q=${place}`
-)
+const url=
+"https://www.google.com/maps/search/"+encodeURIComponent(place)
 
-const data=await res.json()
-
-if(!data.length){
-alert("場所見つからない")
-return
+window.open(url,"_blank")
 }
 
-const lat=data[0].lat
-const lon=data[0].lon
-
-map.setView([lat,lon],6)
-
-if(marker)map.removeLayer(marker)
-
-marker=L.marker([lat,lon]).addTo(map)
-}
-
-/* ========= 検索 ========= */
+/* ===== 検索 ===== */
 
 function searchPlace(){
-jumpMap(document.getElementById("mapSearch").value)
+openMap(document.getElementById("mapSearch").value)
 }
 
 </script>
