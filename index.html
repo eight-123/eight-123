@@ -2,151 +2,47 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>積み込み管理</title>
+<title>年表ツール</title>
 
 <style>
 
 body{
   font-family:sans-serif;
-  background:#f0f0f0;
   padding:20px;
 }
 
-.topbar{
-  display:flex;
-  gap:10px;
+h2{
   margin-bottom:10px;
 }
 
-.topbar button.a{
-  width:160px;
-  height:60px;
-  font-size:26px;
-  border:none;
-  border-radius:12px;
-  background:#ddd;
-  cursor:pointer;
+input,button{
+  font-size:16px;
+  margin:5px;
 }
 
-.topbar button.a:active{
-  background:#bbb;
-}
-
-.searchWrapper{
+#timeline{
   display:flex;
-  gap:5px;
-  margin-bottom:15px;
+  overflow-x:auto;
+  gap:20px;
+  padding:20px;
+  border-top:2px solid black;
 }
 
-.searchbar{
-  flex:1;
-  padding:8px;
-  font-size:16px;
-}
-
-.searchBtn{
-  width:100px;
-  font-size:16px;
-  border:none;
-  border-radius:12px;
-  background:#ddd;
-  cursor:pointer;
-}
-
-.searchBtn:active{
-  background:#bbb;
-}
-
-.item{
-  background:white;
-  padding:15px;
-  margin:12px 0;
+.card{
+  min-width:220px;
+  border:1px solid #ccc;
   border-radius:10px;
-  display:flex;
-  align-items:center;
-  gap:10px;
-  justify-content: space-between; /* 右端にハンドル */
+  padding:10px;
+  background:#f5f5f5;
 }
 
-.leftPart{
-  display:flex;
-  align-items:center;
-  gap:10px;
-}
-
-.name{
-  width:140px;
+.year{
   font-weight:bold;
+  font-size:20px;
 }
 
-.need{ width:60px; }
-
-.counter{
-  display:flex;
-  align-items:center;
-  gap:5px;
-}
-
-.load{
-  width:60px;
-  text-align:center;
-  font-size:18px;
-}
-
-button.b{
-  width:60px;
-  height:60px;
-  font-size:26px;
-  border:none;
-  border-radius:12px;
-  background:#ddd;
-  cursor:pointer;
-}
-
-button.b:active{
-  background:#bbb;
-}
-
-.delete{
-  width:60px;
-  height:60px;
-  font-size:26px;
-  border:none;
-  border-radius:12px;
-  background:#ffb3b3;
-  cursor:pointer;
-}
-
-.done{
-  background:#c8ffd0;
-}
-
-.add{
-  width:auto;
-  height:auto;
-  padding:10px 20px;
-  font-size:18px;
-  margin-top:15px;
-}
-
-.check{
-  transform:scale(1.5);
-}
-
-.handle{
-  cursor:grab;
-  font-size:45px;
-  padding:0 8px;
-  user-select:none;
-  color:#8f8f8f;
-}
-
-.dragging{
-  opacity:0.5;
-}
-
-.highlight {
-  background-color: #ffff99; /* 黄色くハイライト */
+button{
+  margin-top:5px;
 }
 
 </style>
@@ -154,207 +50,134 @@ button.b:active{
 
 <body>
 
-<h1>🚚 積み込みリスト</h1>
+<h2>年表ツール</h2>
 
-<div class="topbar">
-  <button class="a" onclick="exportText()">📋 書き出し</button>
-  <button class="a" onclick="importText()">📥 読み込み</button>
-</div>
+年：
+<input id="year" type="number">
 
-<div class="searchWrapper">
-  <input type="text" class="searchbar" placeholder="検索..." id="searchInput">
-  <button class="searchBtn" onclick="doSearch()">検索</button>
-</div>
+出来事：
+<input id="event" type="text">
 
-<div id="list"></div>
+<button id="addBtn">追加</button>
 
-<button class="add" onclick="addItem()">＋ 項目追加</button>
-
-<!-- Sortable.js -->
-<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+<div id="timeline"></div>
 
 <script>
 
-/////////////////////
-// 項目生成
-/////////////////////
-function createItem(name="新しい項目",need=1,load=0){
-  let div=document.createElement("div");
-  div.className="item";
+// ======================
+// 要素取得（←重要）
+// ======================
+const yearInput = document.getElementById("year");
+const eventInput = document.getElementById("event");
+const addBtn = document.getElementById("addBtn");
+const timeline = document.getElementById("timeline");
 
-  div.innerHTML=`
-    <div class="leftPart">
-      <div class="name" contenteditable="true">${name}</div>
-      必要
-      <input class="need" type="number" value="${need}">
-      <div class="counter">
-        <button class="b" onclick="change(this,-1)">−</button>
-        <input class="load" type="number" value="${load}" readonly>
-        <button class="b" onclick="change(this,1)">＋</button>
-      </div>
-      <input type="checkbox" class="check" disabled>
-      <button class="delete" onclick="removeItem(this)">🗑</button>
-    </div>
-    <div class="handle">≡</div>
-  `;
+// ======================
+// データ読み込み
+// ======================
+let data = JSON.parse(localStorage.getItem("timeline")) || [];
 
-  document.getElementById("list").appendChild(div);
+draw();
 
-  div.querySelector(".need")
-     .addEventListener("input",()=>update(div));
+// ======================
+// 追加ボタン
+// ======================
+addBtn.addEventListener("click", addEvent);
 
-  update(div);
-}
-
-/////////////////////
+// ======================
 // 追加
-/////////////////////
-function addItem(){
-  let name=prompt("項目名を入力");
-  if(!name)return;
-  createItem(name,1,0);
-  saveData();
+// ======================
+function addEvent(){
+
+  const year = Number(yearInput.value);
+  const event = eventInput.value.trim();
+
+  if(!year || !event){
+    alert("入力して！");
+    return;
+  }
+
+  data.push({
+    id:Date.now(),
+    year:year,
+    event:event
+  });
+
+  save();
+  sortData();
+  draw();
+
+  yearInput.value="";
+  eventInput.value="";
 }
 
-/////////////////////
+// ======================
+// ソート
+// ======================
+function sortData(){
+  data.sort((a,b)=>a.year-b.year);
+}
+
+// ======================
+// 保存
+// ======================
+function save(){
+  localStorage.setItem("timeline",JSON.stringify(data));
+}
+
+// ======================
 // 削除
-/////////////////////
-function removeItem(btn){
-  if(confirm("削除しますか？")){
-    btn.closest(".item").remove();
-    saveData();
-  }
+// ======================
+function removeEvent(id){
+  data=data.filter(item=>item.id!==id);
+  save();
+  draw();
 }
 
-/////////////////////
-// カウント変更
-/////////////////////
-function change(btn,delta){
-  let item=btn.closest(".item");
-  let loadInput=item.querySelector(".load");
-  let v=Number(loadInput.value);
-  v+=delta;
-  if(v<0)v=0;
-  loadInput.value=v;
-  update(item);
-  saveData();
+// ======================
+// 編集
+// ======================
+function editEvent(id){
+
+  const item=data.find(d=>d.id===id);
+
+  const newYear=prompt("年を編集",item.year);
+  const newEvent=prompt("出来事を編集",item.event);
+
+  if(!newYear || !newEvent)return;
+
+  item.year=Number(newYear);
+  item.event=newEvent;
+
+  save();
+  sortData();
+  draw();
 }
 
-/////////////////////
-// 判定更新
-/////////////////////
-function update(item){
-  let need=Number(item.querySelector(".need").value);
-  let load=Number(item.querySelector(".load").value);
-  let check=item.querySelector(".check");
-  if(load>=need && need>0){
-    check.checked=true;
-    item.classList.add("done");
-  }else{
-    check.checked=false;
-    item.classList.remove("done");
-  }
-}
+// ======================
+// 描画
+// ======================
+function draw(){
 
-/////////////////////
-// 書き出し（文字＋数字）
-/////////////////////
-function exportText() {
-  let lines = [];
-  document.querySelectorAll(".item").forEach(item => {
-    let name = item.querySelector(".name").innerText.trim();
-    let need = item.querySelector(".need").value;
-    // カンマなしで文字＋数字
-    lines.push(`${name}${need}`);
+  timeline.innerHTML="";
+
+  sortData();
+
+  data.forEach(item=>{
+
+    const card=document.createElement("div");
+    card.className="card";
+
+    card.innerHTML=`
+      <div class="year">${item.year}</div>
+      <div>${item.event}</div>
+      <button onclick="editEvent(${item.id})">編集</button>
+      <button onclick="removeEvent(${item.id})">削除</button>
+    `;
+
+    timeline.appendChild(card);
   });
-  let text = lines.join("\n"); // 改行区切り
-  prompt("コピーしてください", text);
 }
-
-/////////////////////
-// 読み込み（数字で項目を判別）
-/////////////////////
-function importText() {
-  let text = prompt("貼り付けてください");
-  if (!text) return;
-
-  document.getElementById("list").innerHTML = "";
-
-  // 正規表現で文字列+数字の組み合わせをすべて取得
-  let regex = /([^\d]+)(\d+)/g;
-  let match;
-  while (match = regex.exec(text)) {
-    let name = match[1].trim();       // 文字部分
-    let need = Number(match[2]);       // 数字部分
-    createItem(name, need, 0);
-  }
-  saveData();
-}
-
-/////////////////////
-// オートセーブ・オートロード
-/////////////////////
-function saveData(){
-  let data=[];
-  document.querySelectorAll(".item").forEach(item=>{
-    let name=item.querySelector(".name").innerText.trim();
-    let need=item.querySelector(".need").value;
-    let load=item.querySelector(".load").value;
-    data.push({name,need,load});
-  });
-  localStorage.setItem("loadingList",JSON.stringify(data));
-}
-
-function loadData(){
-  let data=JSON.parse(localStorage.getItem("loadingList")||"[]");
-  data.forEach(d=>createItem(d.name,d.need,d.load));
-}
-
-/////////////////////
-// 検索機能（ボタン押すとスクロール）
-/////////////////////
-function doSearch(){
-  let keyword = document.getElementById("searchInput").value.toLowerCase();
-  let list = document.getElementById("list");
-  let items = list.querySelectorAll(".item");
-  let found = null;
-
-  items.forEach(item=>{
-    let name = item.querySelector(".name").innerText.toLowerCase();
-    if(name.includes(keyword)){
-      item.classList.add("highlight"); // 背景色変更
-      if(!found) found=item;
-
-      // 3秒後に元の背景に戻す
-      setTimeout(()=>{
-        item.classList.remove("highlight");
-      }, 3000);
-
-    } else {
-      item.classList.remove("highlight"); // 元に戻す
-    }
-  });
-
-  if(found){
-    found.scrollIntoView({behavior:"smooth", block:"center"});
-  }
-}
-
-/////////////////////
-// 初期化
-/////////////////////
-window.addEventListener("load",()=>{
-  loadData();
-
-  new Sortable(document.getElementById("list"), {
-    animation:150,
-    ghostClass:"dragging",
-    handle:".handle",
-    onEnd: saveData
-  });
-});
-
-window.addEventListener("beforeunload",saveData);
 
 </script>
 
