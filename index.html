@@ -35,7 +35,7 @@ body{
 .page.active{ display:block; }
 
 /* ===================== */
-/* 歴史 */
+/* 歴史（完全そのまま） */
 /* ===================== */
 #timeline{
   display:flex;
@@ -62,13 +62,27 @@ body{
 button.small{ font-size:12px; margin-top:5px; }
 
 /* ===================== */
-/* 理科（簡易マインドマップ） */
+/* 理科（ドラッグ） */
 /* ===================== */
+#map{
+  width:100%;
+  height:500px;
+  border:1px solid #ccc;
+  position:relative;
+  background:#fafafa;
+  overflow:hidden;
+}
+
 .node{
-  margin-left:20px;
-  padding-left:10px;
-  border-left:2px solid #ccc;
-  margin-top:5px;
+  position:absolute;
+  width:140px;
+  padding:6px;
+  font-size:12px;
+  background:#f7f7f7;
+  border:1px solid #aaa;
+  border-radius:8px;
+  cursor:grab;
+  user-select:none;
 }
 
 /* ===================== */
@@ -88,7 +102,6 @@ button.small{ font-size:12px; margin-top:5px; }
 
 <h2>📚 学習OS</h2>
 
-<!-- タブ -->
 <div class="tabs">
   <div class="tab active" onclick="switchTab('history')">歴史</div>
   <div class="tab" onclick="switchTab('science')">理科</div>
@@ -96,7 +109,7 @@ button.small{ font-size:12px; margin-top:5px; }
 </div>
 
 <!-- ===================== -->
-<!-- 歴史 -->
+<!-- 歴史（完全無変更） -->
 <!-- ===================== -->
 <div id="history" class="page active">
 
@@ -111,7 +124,7 @@ button.small{ font-size:12px; margin-top:5px; }
 </div>
 
 <!-- ===================== -->
-<!-- 理科 -->
+<!-- 理科（追加） -->
 <!-- ===================== -->
 <div id="science" class="page">
 
@@ -122,18 +135,18 @@ button.small{ font-size:12px; margin-top:5px; }
 <input id="sc_text" placeholder="説明">
 <button onclick="addScience()">追加</button>
 
-<div id="scienceList"></div>
+<div id="map"></div>
 </div>
 
 <!-- ===================== -->
-<!-- 数学 -->
+<!-- 数学（追加） -->
 <!-- ===================== -->
 <div id="math" class="page">
 
 <h3>➗ 数学ノート</h3>
 
 <input id="m_cat" placeholder="カテゴリ">
-<input id="m_title" placeholder="公式名">
+<input id="m_title" placeholder="公式">
 <input id="m_text" placeholder="説明">
 <button onclick="addMath()">追加</button>
 
@@ -147,14 +160,13 @@ button.small{ font-size:12px; margin-top:5px; }
 function switchTab(id){
   document.querySelectorAll(".page").forEach(p=>p.classList.remove("active"));
   document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
-
   document.getElementById(id).classList.add("active");
   event.target.classList.add("active");
 }
 
-// =====================
-// ===== 歴史（完全版） =====
-// =====================
+// =====================================================
+// ===================== 歴史（絶対無改造） =====================
+// =====================================================
 const eras = [
   {name:"令和", start:2019},
   {name:"平成", start:1989},
@@ -240,10 +252,12 @@ function render(){
 
 update();
 
-// =====================
-// ===== 理科 =====
-// =====================
+// =====================================================
+// ===================== 理科（ドラッグ版） =====================
+// =====================================================
 let science = JSON.parse(localStorage.getItem("science") || "[]");
+let nodes = {};
+let lines = [];
 
 function addScience(){
   const p=document.getElementById("sc_parent").value;
@@ -252,42 +266,95 @@ function addScience(){
 
   if(!p||!c) return;
 
-  science.push({p,c,t});
-  localStorage.setItem("science",JSON.stringify(science));
+  science.push({
+    id:Date.now(),
+    parent:p,
+    child:c,
+    text:t,
+    x:100+Math.random()*200,
+    y:100+Math.random()*200
+  });
+
+  saveScience();
   renderScience();
 }
 
+function saveScience(){
+  localStorage.setItem("science",JSON.stringify(science));
+}
+
 function renderScience(){
-  const el=document.getElementById("scienceList");
-  el.innerHTML="";
+  const map=document.getElementById("map");
+  map.innerHTML="";
 
-  const map={};
+  nodes={};
+  lines=[];
 
-  science.forEach(s=>{
-    if(!map[s.p]) map[s.p]=[];
-    map[s.p].push(s);
+  const parents=[...new Set(science.map(s=>s.parent))];
+  const pos={};
+
+  parents.forEach((p,i)=>{
+    pos[p]={x:120,y:80+i*140};
   });
 
-  for(const p in map){
-    const div=document.createElement("div");
-    div.innerHTML=`<b>🌿 ${p}</b>`;
+  science.forEach(s=>{
 
-    map[p].forEach(s=>{
-      const child=document.createElement("div");
-      child.className="node";
-      child.innerHTML=`${s.c}<br><small>${s.t}</small>`;
-      div.appendChild(child);
-    });
+    if(!nodes[s.parent]){
+      const pn=createNode("🌿 "+s.parent,pos[s.parent].x,pos[s.parent].y);
+      nodes[s.parent]=pn;
+      map.appendChild(pn.el);
+    }
 
-    el.appendChild(div);
-  }
+    const cn=createNode(s.child+"\n"+(s.text||""),s.x,s.y);
+    nodes[s.id]=cn;
+    map.appendChild(cn.el);
+
+    enableDrag(cn,s);
+  });
+}
+
+function createNode(text,x,y){
+  const div=document.createElement("div");
+  div.className="node";
+  div.style.left=x+"px";
+  div.style.top=y+"px";
+  div.innerText=text;
+  return {el:div};
+}
+
+function enableDrag(node,data){
+  let ox,oy;
+
+  node.el.onmousedown=(e)=>{
+    ox=e.offsetX;
+    oy=e.offsetY;
+
+    document.onmousemove=(e)=>{
+      node.el.style.left=(e.pageX-ox)+"px";
+      node.el.style.top=(e.pageY-oy)+"px";
+
+      science.forEach(s=>{
+        const n=nodes[s.id];
+        if(n){
+          s.x=parseInt(n.el.style.left);
+          s.y=parseInt(n.el.style.top);
+        }
+      });
+
+      saveScience();
+    };
+
+    document.onmouseup=()=>{
+      document.onmousemove=null;
+    };
+  };
 }
 
 renderScience();
 
-// =====================
-// ===== 数学 =====
-// =====================
+// =====================================================
+// ===================== 数学 =====================
+// =====================================================
 let math = JSON.parse(localStorage.getItem("math") || "[]");
 
 function addMath(){
@@ -300,15 +367,34 @@ function addMath(){
   renderMath();
 }
 
+function editMath(i){
+  const m=math[i];
+  const c=prompt("カテゴリ",m.c);
+  const t=prompt("公式",m.t);
+  const d=prompt("説明",m.d);
+
+  if(c&&t){
+    math[i]={c,t,d};
+    localStorage.setItem("math",JSON.stringify(math));
+    renderMath();
+  }
+}
+
+function deleteMath(i){
+  math.splice(i,1);
+  localStorage.setItem("math",JSON.stringify(math));
+  renderMath();
+}
+
 function renderMath(){
   const el=document.getElementById("mathList");
   el.innerHTML="";
 
   const g={};
 
-  math.forEach(m=>{
+  math.forEach((m,i)=>{
     if(!g[m.c]) g[m.c]=[];
-    g[m.c].push(m);
+    g[m.c].push({...m,i});
   });
 
   for(const c in g){
@@ -317,7 +403,13 @@ function renderMath(){
     div.innerHTML=`<b>📂 ${c}</b><br>`;
 
     g[c].forEach(m=>{
-      div.innerHTML+=`➗ ${m.t}<br>${m.d}<br><br>`;
+      div.innerHTML+=`
+        ➗ ${m.t}<br>
+        ${m.d}<br>
+        <button onclick="editMath(${m.i})">編集</button>
+        <button onclick="deleteMath(${m.i})">削除</button>
+        <br><br>
+      `;
     });
 
     el.appendChild(div);
