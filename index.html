@@ -62,7 +62,7 @@ body{
 button.small{ font-size:12px; margin-top:5px; }
 
 /* ===================== */
-/* 理科（ドラッグ） */
+/* 理科（リンク型ノード） */
 /* ===================== */
 #map{
   width:100%;
@@ -83,6 +83,14 @@ button.small{ font-size:12px; margin-top:5px; }
   border-radius:8px;
   cursor:grab;
   user-select:none;
+}
+
+/* 線 */
+.link-line{
+  position:absolute;
+  background:#555;
+  height:2px;
+  transform-origin:0 0;
 }
 
 /* ===================== */
@@ -109,7 +117,7 @@ button.small{ font-size:12px; margin-top:5px; }
 </div>
 
 <!-- ===================== -->
-<!-- 歴史（完全無変更） -->
+<!-- 歴史（無改造） -->
 <!-- ===================== -->
 <div id="history" class="page active">
 
@@ -124,11 +132,11 @@ button.small{ font-size:12px; margin-top:5px; }
 </div>
 
 <!-- ===================== -->
-<!-- 理科（追加） -->
+<!-- 理科（完成版） -->
 <!-- ===================== -->
 <div id="science" class="page">
 
-<h3>🧪 理科マインドマップ</h3>
+<h3>🧪 理科マインドマップ（リンク型）</h3>
 
 <input id="sc_parent" placeholder="親テーマ">
 <input id="sc_child" placeholder="子テーマ">
@@ -139,7 +147,7 @@ button.small{ font-size:12px; margin-top:5px; }
 </div>
 
 <!-- ===================== -->
-<!-- 数学（追加） -->
+<!-- 数学（無改造） -->
 <!-- ===================== -->
 <div id="math" class="page">
 
@@ -165,7 +173,7 @@ function switchTab(id){
 }
 
 // =====================================================
-// ===================== 歴史（絶対無改造） =====================
+// ===================== 歴史（完全そのまま） =====================
 // =====================================================
 const eras = [
   {name:"令和", start:2019},
@@ -253,11 +261,13 @@ function render(){
 update();
 
 // =====================================================
-// ===================== 理科（ドラッグ版） =====================
+// ===================== 理科（完成版リンクノード） =====================
 // =====================================================
 let science = JSON.parse(localStorage.getItem("science") || "[]");
+let links = JSON.parse(localStorage.getItem("science_links") || "[]");
+
 let nodes = {};
-let lines = [];
+let selectedNode = null;
 
 function addScience(){
   const p=document.getElementById("sc_parent").value;
@@ -281,6 +291,48 @@ function addScience(){
 
 function saveScience(){
   localStorage.setItem("science",JSON.stringify(science));
+  localStorage.setItem("science_links",JSON.stringify(links));
+}
+
+function editScience(id){
+  const s=science.find(x=>x.id===id);
+  if(!s) return;
+
+  const p=prompt("親",s.parent);
+  const c=prompt("子",s.child);
+  const t=prompt("説明",s.text);
+
+  if(p!==null) s.parent=p;
+  if(c!==null) s.child=c;
+  if(t!==null) s.text=t;
+
+  saveScience();
+  renderScience();
+}
+
+function deleteScience(id){
+  science=science.filter(s=>s.id!==id);
+  links=links.filter(l=>l.from!==id && l.to!==id);
+
+  saveScience();
+  renderScience();
+}
+
+function selectNode(id){
+  if(!selectedNode){
+    selectedNode=id;
+    return;
+  }
+  if(selectedNode===id){
+    selectedNode=null;
+    return;
+  }
+
+  links.push({from:selectedNode,to:id});
+  selectedNode=null;
+
+  saveScience();
+  renderScience();
 }
 
 function renderScience(){
@@ -288,7 +340,6 @@ function renderScience(){
   map.innerHTML="";
 
   nodes={};
-  lines=[];
 
   const parents=[...new Set(science.map(s=>s.parent))];
   const pos={};
@@ -309,8 +360,29 @@ function renderScience(){
     nodes[s.id]=cn;
     map.appendChild(cn.el);
 
+    cn.el.onclick=(e)=>{
+      e.stopPropagation();
+      selectNode(s.id);
+    };
+
+    cn.el.ondblclick=(e)=>{
+      e.stopPropagation();
+      editScience(s.id);
+    };
+
+    const del=document.createElement("button");
+    del.innerText="削除";
+    del.onclick=(e)=>{
+      e.stopPropagation();
+      deleteScience(s.id);
+    };
+
+    cn.el.appendChild(del);
+
     enableDrag(cn,s);
   });
+
+  drawLinks();
 }
 
 function createNode(text,x,y){
@@ -322,7 +394,7 @@ function createNode(text,x,y){
   return {el:div};
 }
 
-function enableDrag(node,data){
+function enableDrag(node){
   let ox,oy;
 
   node.el.onmousedown=(e)=>{
@@ -342,18 +414,45 @@ function enableDrag(node,data){
       });
 
       saveScience();
+      drawLinks();
     };
 
-    document.onmouseup=()=>{
-      document.onmousemove=null;
-    };
+    document.onmouseup=()=>document.onmousemove=null;
   };
+}
+
+function drawLinks(){
+  document.querySelectorAll(".link-line").forEach(l=>l.remove());
+
+  links.forEach(l=>{
+    const a=nodes[l.from];
+    const b=nodes[l.to];
+    if(!a||!b) return;
+
+    const line=document.createElement("div");
+    line.className="link-line";
+
+    const x1=parseFloat(a.el.style.left)+70;
+    const y1=parseFloat(a.el.style.top)+20;
+    const x2=parseFloat(b.el.style.left)+70;
+    const y2=parseFloat(b.el.style.top)+20;
+
+    const len=Math.hypot(x2-x1,y2-y1);
+    const ang=Math.atan2(y2-y1,x2-x1)*180/Math.PI;
+
+    line.style.width=len+"px";
+    line.style.left=x1+"px";
+    line.style.top=y1+"px";
+    line.style.transform=`rotate(${ang}deg)`;
+
+    map.appendChild(line);
+  });
 }
 
 renderScience();
 
 // =====================================================
-// ===================== 数学 =====================
+// ===================== 数学（無改造） =====================
 // =====================================================
 let math = JSON.parse(localStorage.getItem("math") || "[]");
 
