@@ -2,9 +2,10 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>年表ツール（安全版）</title>
+<title>歴史年表GIS</title>
 
 <style>
+
 body{
 margin:0;
 font-family:sans-serif;
@@ -12,10 +13,10 @@ display:flex;
 height:100vh;
 }
 
-/* ===== 年表 ===== */
+/* ===== 左：年表 ===== */
 
 #left{
-width:65%;
+width:60%;
 overflow-y:auto;
 background:#f5f5f5;
 padding:20px;
@@ -38,71 +39,112 @@ width:320px;
 }
 
 .event:hover{
-background:#e8f2ff;
+background:#e3f2fd;
 }
 
-/* ===== 地図メニュー ===== */
+/* ===== 右：地図 ===== */
 
 #right{
-width:35%;
-padding:20px;
-background:#ffffff;
-border-left:2px solid #ddd;
+width:40%;
+background:white;
+padding:10px;
+overflow:auto;
 }
 
-input,button{
-margin:4px;
-padding:6px;
+svg path{
+fill:#ddd;
+stroke:#333;
+cursor:pointer;
 }
+
 </style>
 </head>
 
 <body>
 
-<!-- ========= 年表 ========= -->
+<!-- ================= 年表 ================= -->
 
 <div id="left">
 
 <h2>年表</h2>
 
-<input id="yearInput" placeholder="年（1600 / -300）">
+<input id="yearInput" placeholder="年（例：1600 / -300）">
 <input id="titleInput" placeholder="出来事">
 <input id="placeInput" placeholder="場所">
+
 <button onclick="addEvent()">追加</button>
 
-<br>
+<br><br>
 
-<button onclick="setMode('normal')">通常表示</button>
+<button onclick="setMode('normal')">通常</button>
 <button onclick="setMode('scale')">年代比例</button>
+
+<br><br>
+
+<h3>年代スライダー</h3>
+
+<input type="range"
+id="timeSlider"
+min="-1000"
+max="2025"
+value="1600"
+oninput="updateTime()">
+
+<span id="timeLabel"></span>
 
 <div id="timeline"></div>
 
 </div>
 
-<!-- ========= 地図 ========= -->
+<!-- ================= 地図 ================= -->
 
 <div id="right">
 
-<h3>地図メニュー</h3>
+<h3>日本地図</h3>
 
-<input id="mapSearch" placeholder="地名検索">
-<button onclick="searchPlace()">Google Mapsで開く</button>
+<div id="mapArea">
 
-<p>
-※地図はGoogle Mapsを使用します<br>
-（外部サービスへ移動します）
-</p>
+<svg viewBox="0 0 300 500" width="300">
+
+<rect x="120" y="20" width="80" height="60"
+onclick="selectPref('北海道')"/>
+
+<rect x="140" y="90" width="60" height="80"
+onclick="selectPref('東北')"/>
+
+<rect x="150" y="180" width="60" height="60"
+onclick="selectPref('東京')"/>
+
+<rect x="110" y="230" width="60" height="70"
+onclick="selectPref('名古屋')"/>
+
+<rect x="90" y="300" width="60" height="70"
+onclick="selectPref('大阪')"/>
+
+<rect x="60" y="330" width="60" height="60"
+onclick="selectPref('広島')"/>
+
+<rect x="100" y="380" width="60" height="40"
+onclick="selectPref('四国')"/>
+
+<rect x="40" y="420" width="70" height="70"
+onclick="selectPref('福岡')"/>
+
+</svg>
+
+</div>
 
 </div>
 
 <script>
 
-/* ===== データ ===== */
+/* ================= データ ================= */
 
 let events=[]
 let mode="normal"
+let currentYear=1600
 
-/* ===== 年号 ===== */
+/* ================= 元号 ================= */
 
 function gengou(y){
 
@@ -112,8 +154,7 @@ if(y>=1926)return"昭和"
 if(y>=1912)return"大正"
 if(y>=1868)return"明治"
 if(y>=1603)return"江戸"
-if(y>=1336)return"室町"
-if(y>=1185)return"鎌倉"
+if(y>=1467)return"戦国"
 if(y>=794)return"平安"
 if(y>=710)return"奈良"
 if(y>=538)return"飛鳥"
@@ -122,23 +163,21 @@ if(y>=-300)return"弥生"
 return"縄文"
 }
 
-/* ===== 追加 ===== */
+/* ================= 年表追加 ================= */
 
 function addEvent(){
 
-const year=parseInt(
-document.getElementById("yearInput").value
-)
+const year=parseInt(yearInput.value)
 
 if(isNaN(year)){
-alert("年を入力して")
+alert("年を入力")
 return
 }
 
 events.push({
 year,
-title:document.getElementById("titleInput").value||"(なし)",
-place:document.getElementById("placeInput").value||""
+title:titleInput.value||"(なし)",
+place:placeInput.value||""
 })
 
 yearInput.value=""
@@ -148,14 +187,14 @@ placeInput.value=""
 render()
 }
 
-/* ===== 表示モード ===== */
+/* ================= 表示モード ================= */
 
 function setMode(m){
 mode=m
 render()
 }
 
-/* ===== 描画 ===== */
+/* ================= 年表描画 ================= */
 
 function render(){
 
@@ -187,32 +226,112 @@ div.innerHTML=
 `<b>${gengou(e.year)} ${e.year}年</b><br>
 ${e.title}<br>📍${e.place}`
 
-div.onclick=()=>openMap(e.place)
+div.onclick=()=>{
+currentYear=e.year
+timeSlider.value=e.year
+updateTime()
+highlightPref(e.place)
+}
 
 tl.appendChild(div)
+
 })
 
 tl.style.height="2100px"
 }
 
-/* ===== Google Mapsへ ===== */
+/* ================= 地図クリック ================= */
 
-function openMap(place){
+function selectPref(name){
 
-if(!place)return
-
-const url=
-"https://www.google.com/maps/search/"+encodeURIComponent(place)
-
-window.open(url,"_blank")
+placeInput.value=name
+highlightPref(name)
 }
 
-/* ===== 検索 ===== */
+/* ================= ハイライト ================= */
 
-function searchPlace(){
-openMap(document.getElementById("mapSearch").value)
+function highlightPref(name){
+
+document.querySelectorAll("svg rect")
+.forEach(r=>r.setAttribute("fill","#ddd"))
+
+const map={
+"北海道":0,
+"東北":1,
+"東京":2,
+"名古屋":3,
+"大阪":4,
+"広島":5,
+"四国":6,
+"福岡":7
 }
+
+const rect=document.querySelectorAll("svg rect")[map[name]]
+
+if(rect)rect.setAttribute("fill","red")
+}
+
+/* ================= 時代分類 ================= */
+
+function getEra(y){
+
+if(y>=1868)return"modern"
+if(y>=1600)return"edo"
+if(y>=1467)return"sengoku"
+if(y>=794)return"heian"
+return"ancient"
+}
+
+/* ================= スライダー ================= */
+
+function updateTime(){
+
+currentYear=Number(timeSlider.value)
+
+timeLabel.textContent=
+gengou(currentYear)+" "+currentYear+"年"
+
+updateMapByTime()
+}
+
+/* ================= 地図色変更 ================= */
+
+function updateMapByTime(){
+
+const era=getEra(currentYear)
+
+document.querySelectorAll("svg rect")
+.forEach(r=>{
+
+switch(era){
+
+case"modern":
+r.setAttribute("fill","#90caf9")
+break
+
+case"edo":
+r.setAttribute("fill","#a5d6a7")
+break
+
+case"sengoku":
+r.setAttribute("fill","#ffcc80")
+break
+
+case"heian":
+r.setAttribute("fill","#ce93d8")
+break
+
+default:
+r.setAttribute("fill","#eee")
+
+}
+
+})
+}
+
+updateTime()
 
 </script>
+
 </body>
 </html>
