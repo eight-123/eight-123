@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>学習OS（歴史・理科・数学）</title>
+<title>学習OS（安定版）</title>
 
 <style>
 body{
@@ -30,7 +30,6 @@ body{
   color:white;
 }
 
-/* ページ */
 .page{ display:none; }
 .page.active{ display:block; }
 
@@ -59,17 +58,19 @@ body{
 .era{ font-size:12px; color:#666; }
 .category{ font-size:12px; color:#0077cc; }
 
-button.small{ font-size:12px; margin-top:5px; }
+/* ===================== */
+/* 理科（安定ノート） */
+/* ===================== */
+.toolbar{
+  margin-bottom:10px;
+}
 
-/* ===================== */
-/* 理科（ページ式ノート） */
-/* ===================== */
 #canvas{
   border:1px solid #ccc;
   width:100%;
   height:500px;
   background:white;
-  touch-action:none;
+  touch-action:none; /* スクロール完全防止 */
 }
 
 /* ===================== */
@@ -96,7 +97,7 @@ button.small{ font-size:12px; margin-top:5px; }
 </div>
 
 <!-- ===================== -->
-<!-- 歴史（そのまま） -->
+<!-- 歴史 -->
 <!-- ===================== -->
 <div id="history" class="page active">
 
@@ -111,16 +112,21 @@ button.small{ font-size:12px; margin-top:5px; }
 </div>
 
 <!-- ===================== -->
-<!-- 理科（ページ式ペンノート） -->
+<!-- 理科（安定ペンノート） -->
 <!-- ===================== -->
 <div id="science" class="page">
 
-<h3>🧪 理科ノート（ページ式手書き）</h3>
+<h3>🧪 理科ノート（安定手書き）</h3>
 
-<div style="margin-bottom:10px;">
+<div class="toolbar">
+  <button onclick="setTool('pen')">✏ ペン</button>
+  <button onclick="setTool('bold')">🖊 太ペン</button>
+  <button onclick="setTool('eraser')">🧽 消しゴム</button>
+
   <button onclick="addPage()">＋ページ</button>
   <button onclick="prevPage()">←</button>
   <button onclick="nextPage()">→</button>
+
   <span id="pageInfo"></span>
 </div>
 
@@ -129,7 +135,7 @@ button.small{ font-size:12px; margin-top:5px; }
 </div>
 
 <!-- ===================== -->
-<!-- 数学（そのまま） -->
+<!-- 数学 -->
 <!-- ===================== -->
 <div id="math" class="page">
 
@@ -145,9 +151,9 @@ button.small{ font-size:12px; margin-top:5px; }
 
 <script>
 
-// =====================
-// タブ
-// =====================
+/* =====================
+   タブ
+===================== */
 function switchTab(id){
   document.querySelectorAll(".page").forEach(p=>p.classList.remove("active"));
   document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
@@ -155,9 +161,9 @@ function switchTab(id){
   event.target.classList.add("active");
 }
 
-// =====================
-// 歴史（そのまま）
-// =====================
+/* =====================
+   歴史（そのまま）
+===================== */
 const eras=[
   {name:"令和",start:2019},
   {name:"平成",start:1989},
@@ -187,7 +193,6 @@ function addEvent(){
   const y=+year.value;
   const t=text.value;
   const c=category.value;
-
   if(!y||!t)return;
 
   data.push({year:y,text:t,category:c});
@@ -200,7 +205,6 @@ function addEvent(){
 function renderHistory(){
   const tl=document.getElementById("timeline");
   tl.innerHTML="";
-
   data.sort((a,b)=>a.year-b.year);
 
   data.forEach(d=>{
@@ -213,137 +217,155 @@ function renderHistory(){
       <div class="category">${d.category||""}</div>
       <div>${d.text}</div>
     `;
-
     tl.appendChild(div);
   });
 }
-
 renderHistory();
 
-// =====================
-// 理科（ページ式手書きノート）
-// =====================
-let pages = JSON.parse(localStorage.getItem("science_pages") || "[]");
-let pageIndex = 0;
+/* =====================
+   理科（安定版ペン）
+===================== */
+let canvas=document.getElementById("canvas");
+let ctx=canvas.getContext("2d");
 
-let canvas = document.getElementById("canvas");
-let ctx = canvas.getContext("2d");
+let pages=JSON.parse(localStorage.getItem("science_pages")||"[]");
+let pageIndex=0;
 
-let drawing = false;
+let drawing=false;
+let tool="pen";
 
-// 初期ページ
-if(pages.length === 0){
-  pages.push("");
-}
+let lastX=0,lastY=0;
+
+if(pages.length===0) pages.push("");
 
 resize();
 loadPage();
 
-// サイズ調整
 function resize(){
-  canvas.width = canvas.offsetWidth;
-  canvas.height = 500;
+  const rect=canvas.getBoundingClientRect();
+  canvas.width=rect.width;
+  canvas.height=500;
 }
-window.onresize = resize;
+window.addEventListener("resize",resize);
 
-// =====================
-// ページ管理
-// =====================
+/* ツール */
+function setTool(t){ tool=t; }
+
+/* ページ */
 function addPage(){
   pages.push("");
-  pageIndex = pages.length - 1;
-  savePages();
+  pageIndex=pages.length-1;
+  save();
   loadPage();
 }
 
 function prevPage(){
-  if(pageIndex > 0){
+  if(pageIndex>0){
     pageIndex--;
     loadPage();
   }
 }
 
 function nextPage(){
-  if(pageIndex < pages.length - 1){
+  if(pageIndex<pages.length-1){
     pageIndex++;
     loadPage();
   }
 }
 
-// =====================
-// 保存
-// =====================
-function savePages(){
-  pages[pageIndex] = canvas.toDataURL();
-  localStorage.setItem("science_pages", JSON.stringify(pages));
-
-  document.getElementById("pageInfo").innerText =
-    `${pageIndex+1} / ${pages.length}`;
+/* 保存 */
+function save(){
+  pages[pageIndex]=canvas.toDataURL();
+  localStorage.setItem("science_pages",JSON.stringify(pages));
+  pageInfo.innerText=`${pageIndex+1}/${pages.length}`;
 }
 
-// =====================
-// 読み込み
-// =====================
+/* 読み込み */
 function loadPage(){
   ctx.clearRect(0,0,canvas.width,canvas.height);
 
-  let img = new Image();
+  let img=new Image();
+  img.onload=()=>ctx.drawImage(img,0,0);
+  img.src=pages[pageIndex]||"";
 
-  img.onload = () => ctx.drawImage(img,0,0);
-
-  img.src = pages[pageIndex] || "";
-
-  document.getElementById("pageInfo").innerText =
-    `${pageIndex+1} / ${pages.length}`;
+  pageInfo.innerText=`${pageIndex+1}/${pages.length}`;
 }
 
-// =====================
-// 描画
-// =====================
-canvas.addEventListener("mousedown", start);
-canvas.addEventListener("touchstart", start);
-
-function start(e){
-  drawing = true;
-  draw(e);
+/* 座標（ズレ完全防止） */
+function pos(e){
+  const r=canvas.getBoundingClientRect();
+  return {
+    x:(e.touches?e.touches[0].clientX:e.clientX)-r.left,
+    y:(e.touches?e.touches[0].clientY:e.clientY)-r.top
+  };
 }
 
-canvas.addEventListener("mouseup", stop);
-canvas.addEventListener("touchend", stop);
+/* 描画開始 */
+canvas.addEventListener("mousedown",e=>{
+  drawing=true;
+  const p=pos(e);
+  lastX=p.x; lastY=p.y;
+});
 
-function stop(){
-  drawing = false;
+canvas.addEventListener("touchstart",e=>{
+  drawing=true;
+  const p=pos(e);
+  lastX=p.x; lastY=p.y;
+});
+
+/* 描画終了 */
+canvas.addEventListener("mouseup",end);
+canvas.addEventListener("touchend",end);
+
+function end(){
+  drawing=false;
   ctx.beginPath();
-  savePages();
+  save();
 }
 
-canvas.addEventListener("mousemove", draw);
-canvas.addEventListener("touchmove", draw);
+/* 描画 */
+canvas.addEventListener("mousemove",draw);
+canvas.addEventListener("touchmove",draw);
 
 function draw(e){
   if(!drawing) return;
 
-  let x = e.touches ? e.touches[0].clientX : e.clientX;
-  let y = e.touches ? e.touches[0].clientY : e.clientY;
+  const p=pos(e);
 
-  let rect = canvas.getBoundingClientRect();
+  ctx.lineCap="round";
+  ctx.lineJoin="round";
 
-  x -= rect.left;
-  y -= rect.top;
+  if(tool==="pen"){
+    ctx.globalCompositeOperation="source-over";
+    ctx.strokeStyle="black";
+    ctx.lineWidth=2;
+  }
 
-  ctx.globalCompositeOperation = "source-over";
-  ctx.strokeStyle = "black";
-  ctx.lineWidth = 2;
+  if(tool==="bold"){
+    ctx.globalCompositeOperation="source-over";
+    ctx.strokeStyle="black";
+    ctx.lineWidth=6;
+  }
 
-  ctx.lineTo(x,y);
-  ctx.stroke();
+  if(tool==="eraser"){
+    ctx.globalCompositeOperation="destination-out";
+    ctx.lineWidth=20;
+  }
+
   ctx.beginPath();
-  ctx.moveTo(x,y);
+  ctx.moveTo(lastX,lastY);
+  ctx.lineTo(p.x,p.y);
+  ctx.stroke();
+
+  lastX=p.x;
+  lastY=p.y;
+
+  e.preventDefault(); // スクロール完全防止
 }
 
-// =====================
-// 数学（そのまま）
-// =====================
+/* =====================
+   数学
+===================== */
 let math=JSON.parse(localStorage.getItem("math")||"[]");
 
 function addMath(){
@@ -365,7 +387,7 @@ function renderMath(){
 
   const g={};
 
-  math.forEach((m,i)=>{
+  math.forEach(m=>{
     if(!g[m.c])g[m.c]=[];
     g[m.c].push(m);
   });
@@ -382,7 +404,6 @@ function renderMath(){
     el.appendChild(div);
   }
 }
-
 renderMath();
 
 </script>
