@@ -35,7 +35,7 @@ body{
 .page.active{ display:block; }
 
 /* ===================== */
-/* 歴史（完全そのまま） */
+/* 歴史（そのまま） */
 /* ===================== */
 #timeline{
   display:flex;
@@ -62,28 +62,14 @@ body{
 button.small{ font-size:12px; margin-top:5px; }
 
 /* ===================== */
-/* 理科（ページ型キャンバス） */
+/* 理科（ページ式ノート） */
 /* ===================== */
-#map{
+#canvas{
+  border:1px solid #ccc;
   width:100%;
   height:500px;
-  border:1px solid #ccc;
-  background:#fafafa;
-
-  display:flex;
-  gap:10px;
-  overflow-x:auto;
-  padding:10px;
-}
-
-.sc-page{
-  min-width:220px;
-  height:420px;
-  border:1px solid #aaa;
-  border-radius:10px;
-  background:#f7f7f7;
-  padding:10px;
-  flex-shrink:0;
+  background:white;
+  touch-action:none;
 }
 
 /* ===================== */
@@ -125,18 +111,21 @@ button.small{ font-size:12px; margin-top:5px; }
 </div>
 
 <!-- ===================== -->
-<!-- 理科（ページ型ノート） -->
+<!-- 理科（ページ式ペンノート） -->
 <!-- ===================== -->
 <div id="science" class="page">
 
-<h3>🧪 理科ノート（ページ型）</h3>
+<h3>🧪 理科ノート（ページ式手書き）</h3>
 
-<input id="sc_parent" placeholder="単元（例：物理）">
-<input id="sc_child" placeholder="テーマ（例：力）">
-<input id="sc_text" placeholder="説明">
-<button onclick="addScience()">追加</button>
+<div style="margin-bottom:10px;">
+  <button onclick="addPage()">＋ページ</button>
+  <button onclick="prevPage()">←</button>
+  <button onclick="nextPage()">→</button>
+  <span id="pageInfo"></span>
+</div>
 
-<div id="map"></div>
+<canvas id="canvas"></canvas>
+
 </div>
 
 <!-- ===================== -->
@@ -202,14 +191,10 @@ function addEvent(){
   if(!y||!t)return;
 
   data.push({year:y,text:t,category:c});
-  saveHistory();
+  localStorage.setItem("timeline",JSON.stringify(data));
   renderHistory();
 
   year.value=text.value=category.value="";
-}
-
-function saveHistory(){
-  localStorage.setItem("timeline",JSON.stringify(data));
 }
 
 function renderHistory(){
@@ -228,6 +213,7 @@ function renderHistory(){
       <div class="category">${d.category||""}</div>
       <div>${d.text}</div>
     `;
+
     tl.appendChild(div);
   });
 }
@@ -235,82 +221,125 @@ function renderHistory(){
 renderHistory();
 
 // =====================
-// 理科（ページ型ノート完成版）
+// 理科（ページ式手書きノート）
 // =====================
-let science=JSON.parse(localStorage.getItem("science")||"[]");
+let pages = JSON.parse(localStorage.getItem("science_pages") || "[]");
+let pageIndex = 0;
 
-function addScience(){
-  const p=sc_parent.value;
-  const c=sc_child.value;
-  const t=sc_text.value;
+let canvas = document.getElementById("canvas");
+let ctx = canvas.getContext("2d");
 
-  if(!p||!c)return;
+let drawing = false;
 
-  science.push({
-    id:Date.now(),
-    parent:p,
-    child:c,
-    text:t
-  });
-
-  saveScience();
-  renderScience();
-
-  sc_parent.value=sc_child.value=sc_text.value="";
+// 初期ページ
+if(pages.length === 0){
+  pages.push("");
 }
 
-function saveScience(){
-  localStorage.setItem("science",JSON.stringify(science));
+resize();
+loadPage();
+
+// サイズ調整
+function resize(){
+  canvas.width = canvas.offsetWidth;
+  canvas.height = 500;
+}
+window.onresize = resize;
+
+// =====================
+// ページ管理
+// =====================
+function addPage(){
+  pages.push("");
+  pageIndex = pages.length - 1;
+  savePages();
+  loadPage();
 }
 
-// 編集
-function editScience(id){
-  const s=science.find(x=>x.id===id);
-  if(!s)return;
-
-  const p=prompt("単元",s.parent);
-  const c=prompt("テーマ",s.child);
-  const t=prompt("説明",s.text);
-
-  if(p!==null)s.parent=p;
-  if(c!==null)s.child=c;
-  if(t!==null)s.text=t;
-
-  saveScience();
-  renderScience();
+function prevPage(){
+  if(pageIndex > 0){
+    pageIndex--;
+    loadPage();
+  }
 }
 
-// 削除
-function deleteScience(id){
-  science=science.filter(s=>s.id!==id);
-  saveScience();
-  renderScience();
+function nextPage(){
+  if(pageIndex < pages.length - 1){
+    pageIndex++;
+    loadPage();
+  }
 }
 
-// 描画（横並びページ）
-function renderScience(){
-  const map=document.getElementById("map");
-  map.innerHTML="";
+// =====================
+// 保存
+// =====================
+function savePages(){
+  pages[pageIndex] = canvas.toDataURL();
+  localStorage.setItem("science_pages", JSON.stringify(pages));
 
-  science.forEach(s=>{
-    const page=document.createElement("div");
-    page.className="sc-page";
-
-    page.innerHTML=`
-      <b>📘 ${s.parent}</b>
-      <hr>
-      ➜ ${s.child}<br><br>
-      ${s.text||""}
-      <br><br>
-      <button onclick="editScience(${s.id})">編集</button>
-      <button onclick="deleteScience(${s.id})">削除</button>
-    `;
-
-    map.appendChild(page);
-  });
+  document.getElementById("pageInfo").innerText =
+    `${pageIndex+1} / ${pages.length}`;
 }
 
-renderScience();
+// =====================
+// 読み込み
+// =====================
+function loadPage(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+
+  let img = new Image();
+
+  img.onload = () => ctx.drawImage(img,0,0);
+
+  img.src = pages[pageIndex] || "";
+
+  document.getElementById("pageInfo").innerText =
+    `${pageIndex+1} / ${pages.length}`;
+}
+
+// =====================
+// 描画
+// =====================
+canvas.addEventListener("mousedown", start);
+canvas.addEventListener("touchstart", start);
+
+function start(e){
+  drawing = true;
+  draw(e);
+}
+
+canvas.addEventListener("mouseup", stop);
+canvas.addEventListener("touchend", stop);
+
+function stop(){
+  drawing = false;
+  ctx.beginPath();
+  savePages();
+}
+
+canvas.addEventListener("mousemove", draw);
+canvas.addEventListener("touchmove", draw);
+
+function draw(e){
+  if(!drawing) return;
+
+  let x = e.touches ? e.touches[0].clientX : e.clientX;
+  let y = e.touches ? e.touches[0].clientY : e.clientY;
+
+  let rect = canvas.getBoundingClientRect();
+
+  x -= rect.left;
+  y -= rect.top;
+
+  ctx.globalCompositeOperation = "source-over";
+  ctx.strokeStyle = "black";
+  ctx.lineWidth = 2;
+
+  ctx.lineTo(x,y);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(x,y);
+}
 
 // =====================
 // 数学（そのまま）
@@ -338,7 +367,7 @@ function renderMath(){
 
   math.forEach((m,i)=>{
     if(!g[m.c])g[m.c]=[];
-    g[m.c].push({...m,i});
+    g[m.c].push(m);
   });
 
   for(const c in g){
