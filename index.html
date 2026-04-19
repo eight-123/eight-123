@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>歴史学習タイムライン</title>
+<title>学習OS</title>
 
 <style>
 body{
@@ -10,22 +10,55 @@ body{
   padding: 20px;
 }
 
-input, button{
-  padding: 6px;
-  margin: 5px;
+/* タブ */
+.tabs{
+  display: flex;
+  gap: 10px;
+  margin-bottom: 15px;
 }
 
+.tab{
+  padding: 8px 12px;
+  border: 1px solid #333;
+  border-radius: 6px;
+  cursor: pointer;
+  background: #eee;
+}
+
+.tab.active{
+  background: #333;
+  color: white;
+}
+
+/* ページ */
+.page{
+  display: none;
+}
+
+.page.active{
+  display: block;
+}
+
+/* カード */
+.card{
+  border: 1px solid #aaa;
+  border-radius: 10px;
+  padding: 10px;
+  margin: 5px 0;
+  background: #f7f7f7;
+}
+
+/* 社会 */
 #timeline{
   display: flex;
   gap: 10px;
   overflow-x: auto;
   padding: 10px;
   border-top: 2px solid #333;
-  margin-top: 20px;
 }
 
-.card{
-  min-width: 240px;
+.timeline-card{
+  min-width: 220px;
   border: 1px solid #aaa;
   border-radius: 10px;
   padding: 10px;
@@ -33,191 +66,186 @@ input, button{
   flex-shrink: 0;
 }
 
-.year{
-  font-weight: bold;
-  font-size: 18px;
-}
-
-.era{
-  font-size: 12px;
-  color: #666;
-}
-
-.category{
-  font-size: 12px;
-  color: #0077cc;
-}
-
-button.small{
-  font-size: 12px;
-  margin-top: 5px;
+/* ツリー（理科） */
+.tree{
+  margin-left: 20px;
+  border-left: 2px solid #aaa;
+  padding-left: 10px;
 }
 </style>
 </head>
 
 <body>
 
-<h2>📚 歴史学習タイムライン</h2>
+<h2>📚 学習OS（社会・理科・数学）</h2>
 
-<input id="year" type="number" placeholder="西暦">
-<input id="text" type="text" placeholder="出来事">
-<input id="category" type="text" placeholder="分類（戦争・文化など）">
-<button onclick="addEvent()">追加</button>
+<!-- タブ -->
+<div class="tabs">
+  <div class="tab active" onclick="switchTab('social')">社会</div>
+  <div class="tab" onclick="switchTab('science')">理科</div>
+  <div class="tab" onclick="switchTab('math')">数学</div>
+</div>
+
+<!-- ===================== -->
+<!-- 社会（年表） -->
+<!-- ===================== -->
+<div id="social" class="page active">
+
+<h3>📖 社会（年表）</h3>
+
+<input id="s_year" type="number" placeholder="西暦">
+<input id="s_text" type="text" placeholder="出来事">
+<button onclick="addSocial()">追加</button>
 
 <div id="timeline"></div>
+</div>
+
+<!-- ===================== -->
+<!-- 理科（マインドマップ） -->
+<!-- ===================== -->
+<div id="science" class="page">
+
+<h3>🧪 理科（マインドマップ）</h3>
+
+<input id="sc_title" placeholder="テーマ">
+<input id="sc_parent" placeholder="親（なければ空）">
+<input id="sc_text" placeholder="内容">
+<button onclick="addScience()">追加</button>
+
+<div id="scienceList"></div>
+</div>
+
+<!-- ===================== -->
+<!-- 数学（公式） -->
+<!-- ===================== -->
+<div id="math" class="page">
+
+<h3>➗ 数学（公式大全）</h3>
+
+<input id="m_cat" placeholder="カテゴリ（例：図形）">
+<input id="m_title" placeholder="公式名">
+<input id="m_text" placeholder="内容">
+<button onclick="addMath()">追加</button>
+
+<div id="mathList"></div>
+</div>
 
 <script>
-// =========================
-// 元号データ（細かめ版）
-// =========================
-const eras = [
-  {name:"令和", start:2019},
-  {name:"平成", start:1989},
-  {name:"昭和", start:1926},
-  {name:"大正", start:1912},
-  {name:"明治", start:1868},
+// =====================
+// タブ切替
+// =====================
+function switchTab(id){
+  document.querySelectorAll(".page").forEach(p=>{
+    p.classList.remove("active");
+  });
+  document.querySelectorAll(".tab").forEach(t=>{
+    t.classList.remove("active");
+  });
 
-  // 幕末〜江戸後期
-  {name:"慶応", start:1865},
-  {name:"元治", start:1864},
-  {name:"文久", start:1861},
-  {name:"万延", start:1860},
-  {name:"安政", start:1854},
-  {name:"嘉永", start:1848},
-  {name:"弘化", start:1844},
-  {name:"天保", start:1830},
-  {name:"文政", start:1818},
-  {name:"文化", start:1804},
-  {name:"享和", start:1801},
-  {name:"寛政", start:1789},
-  {name:"天明", start:1781},
-  {name:"安永", start:1772},
-  {name:"明和", start:1764},
-  {name:"宝暦", start:1751},
-  {name:"延享", start:1744},
-  {name:"寛保", start:1741},
-  {name:"元文", start:1736},
-  {name:"享保", start:1716},
-
-  // 宝永など
-  {name:"正徳", start:1711},
-  {name:"宝永", start:1704},
-  {name:"元禄", start:1688},
-  {name:"貞享", start:1684},
-  {name:"天和", start:1681},
-
-  // それ以前
-  {name:"江戸初期", start:1603},
-  {name:"安土桃山", start:1573},
-  {name:"室町", start:1336},
-  {name:"鎌倉", start:1185},
-  {name:"平安", start:794}
-];
-
-// =========================
-// 和暦変換
-// =========================
-function toEra(year){
-  for(let i=0;i<eras.length;i++){
-    const e = eras[i];
-    const next = eras[i-1];
-
-    if(year >= e.start){
-      return `${e.name}${year - e.start + 1}年`;
-    }
-  }
-  return "不明";
+  document.getElementById(id).classList.add("active");
+  event.target.classList.add("active");
 }
 
-// =========================
+// =====================
 // データ
-// =========================
-let data = JSON.parse(localStorage.getItem("timeline") || "[]");
+// =====================
+let social = JSON.parse(localStorage.getItem("social") || "[]");
+let science = JSON.parse(localStorage.getItem("science") || "[]");
+let math = JSON.parse(localStorage.getItem("math") || "[]");
 
-// 保存
-function save(){
-  localStorage.setItem("timeline", JSON.stringify(data));
+// =====================
+// 社会
+// =====================
+function addSocial(){
+  const y = parseInt(document.getElementById("s_year").value);
+  const t = document.getElementById("s_text").value;
+
+  if(!y || !t) return;
+
+  social.push({y,t});
+  social.sort((a,b)=>a.y-b.y);
+
+  localStorage.setItem("social", JSON.stringify(social));
+  renderSocial();
 }
 
-// =========================
-// 追加
-// =========================
-function addEvent(){
-  const year = parseInt(document.getElementById("year").value);
-  const text = document.getElementById("text").value;
-  const category = document.getElementById("category").value;
+function renderSocial(){
+  const el = document.getElementById("timeline");
+  el.innerHTML = "";
 
-  if(!year || !text) return;
-
-  data.push({year, text, category});
-  update();
-
-  document.getElementById("year").value = "";
-  document.getElementById("text").value = "";
-  document.getElementById("category").value = "";
+  social.forEach(d=>{
+    const div = document.createElement("div");
+    div.className = "timeline-card";
+    div.innerHTML = `<b>${d.y}</b><br>${d.t}`;
+    el.appendChild(div);
+  });
 }
 
-// =========================
-// 編集
-// =========================
-function editEvent(i){
-  const y = prompt("西暦", data[i].year);
-  const t = prompt("出来事", data[i].text);
-  const c = prompt("分類", data[i].category);
+// =====================
+// 理科（ツリー構造）
+// =====================
+function addScience(){
+  const title = document.getElementById("sc_title").value;
+  const parent = document.getElementById("sc_parent").value;
+  const text = document.getElementById("sc_text").value;
 
-  if(y && t){
-    data[i] = {
-      year: parseInt(y),
-      text: t,
-      category: c
-    };
-    update();
-  }
+  science.push({title,parent,text});
+  localStorage.setItem("science", JSON.stringify(science));
+  renderScience();
 }
 
-// =========================
-// 削除
-// =========================
-function deleteEvent(i){
-  data.splice(i,1);
-  update();
-}
+function renderScience(){
+  const el = document.getElementById("scienceList");
+  el.innerHTML = "";
 
-// =========================
-// 更新処理
-// =========================
-function update(){
-  data.sort((a,b)=>a.year-b.year);
-  save();
-  render();
-}
-
-// =========================
-// 描画
-// =========================
-function render(){
-  const tl = document.getElementById("timeline");
-  tl.innerHTML = "";
-
-  data.forEach((d,i)=>{
+  science.forEach(d=>{
     const div = document.createElement("div");
     div.className = "card";
 
     div.innerHTML = `
-      <div class="year">${d.year}</div>
-      <div class="era">${toEra(d.year)}</div>
-      <div class="category">📌 ${d.category || "未分類"}</div>
-      <div>${d.text}</div>
-
-      <button class="small" onclick="editEvent(${i})">編集</button>
-      <button class="small" onclick="deleteEvent(${i})">削除</button>
+      <b>${d.title}</b><br>
+      ${d.parent ? "↳ "+d.parent+"<br>" : ""}
+      ${d.text}
     `;
 
-    tl.appendChild(div);
+    el.appendChild(div);
   });
 }
 
-update();
+// =====================
+// 数学
+// =====================
+function addMath(){
+  const cat = document.getElementById("m_cat").value;
+  const title = document.getElementById("m_title").value;
+  const text = document.getElementById("m_text").value;
+
+  math.push({cat,title,text});
+  localStorage.setItem("math", JSON.stringify(math));
+  renderMath();
+}
+
+function renderMath(){
+  const el = document.getElementById("mathList");
+  el.innerHTML = "";
+
+  math.forEach(d=>{
+    const div = document.createElement("div");
+    div.className = "card";
+
+    div.innerHTML = `
+      <b>[${d.cat}] ${d.title}</b><br>
+      ${d.text}
+    `;
+
+    el.appendChild(div);
+  });
+}
+
+// 初期表示
+renderSocial();
+renderScience();
+renderMath();
 </script>
 
 </body>
