@@ -2,11 +2,11 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>TD4 Logic Simulator</title>
+<title>Logic Simulator</title>
 
 <style>
 body{margin:0;background:#111;color:white;font-family:sans-serif}
-#toolbar{background:#222;padding:6px}
+#bar{background:#222;padding:6px}
 button{margin:2px}
 canvas{display:block;background:#111}
 </style>
@@ -14,15 +14,13 @@ canvas{display:block;background:#111}
 
 <body>
 
-<div id="toolbar">
-<button onclick="addGate('INPUT')">INPUT</button>
-<button onclick="addGate('CLOCK')">CLOCK</button>
-<button onclick="addGate('AND')">AND</button>
-<button onclick="addGate('OR')">OR</button>
-<button onclick="addGate('NOT')">NOT</button>
-<button onclick="addGate('DFF')">D-FF</button>
-<button onclick="addGate('ROM')">ROM(DIP)</button>
-<button onclick="addGate('LED')">LED</button>
+<div id="bar">
+<button onclick="add('INPUT')">INPUT</button>
+<button onclick="add('CLOCK')">CLOCK</button>
+<button onclick="add('AND')">AND</button>
+<button onclick="add('NOT')">NOT</button>
+<button onclick="add('LED')">LED</button>
+<button onclick="add('ROM')">ROM(DIP)</button>
 <button onclick="running=!running">RUN</button>
 </div>
 
@@ -43,11 +41,9 @@ onresize=resize
 let gates=[]
 let wires=[]
 let running=false
-let connectFrom=null
+let connect=null
 
-//================
-// Gate
-//================
+//================ Gate =================
 
 class Gate{
 
@@ -55,126 +51,127 @@ constructor(type,x,y){
 this.type=type
 this.x=x
 this.y=y
-this.output=0
 this.inputs=[0,0]
+this.output=0
 this.state=0
 
-// ROM DIP
-if(type==="ROM"){
+if(type==="ROM")
 this.dip=new Array(8).fill(0)
 }
-}
 
-outputPos(){
-return {x:this.x+70,y:this.y+20}
-}
-
-inputPos(i){
-return {x:this.x-10,y:this.y+10+i20}
-}
+out(){return {x:this.x+60,y:this.y+20}}
+inp(i){return {x:this.x,y:this.y+10+i20}}
 
 draw(){
 
 ctx.fillStyle="#333"
-ctx.fillRect(this.x,this.y,70,40)
+ctx.fillRect(this.x,this.y,60,40)
 
 ctx.fillStyle="white"
 ctx.fillText(this.type,this.x+5,this.y+15)
 
 // inputs
 for(let i=0;i<2;i++){
-let p=this.inputPos(i)
+let p=this.inp(i)
 ctx.fillStyle=this.inputs[i]?"red":"blue"
 ctx.beginPath()
-ctx.arc(p.x,p.y,5,0,Math.PI2)
+ctx.arc(p.x,p.y,5,0,6.28)
 ctx.fill()
 }
 
 // output
-let o=this.outputPos()
+let o=this.out()
 ctx.fillStyle=this.output?"red":"blue"
 ctx.beginPath()
-ctx.arc(o.x,o.y,5,0,Math.PI2)
+ctx.arc(o.x,o.y,5,0,6.28)
 ctx.fill()
 
-// DIP switches
+// ROM DIP
 if(this.type==="ROM"){
 for(let i=0;i<8;i++){
 ctx.fillStyle=this.dip[i]?"lime":"#555"
-ctx.fillRect(this.x+i8,this.y+45,6,12)
+ctx.fillRect(this.x+i7,this.y+45,6,12)
 }
 }
 }
 }
 
-//================
-// Add gate
-//================
+//================ add =================
 
-function addGate(t){
-gates.push(new Gate(t,100,100))
+function add(t){
+gates.push(new Gate(t,100+Math.random()200,100))
 }
 
-//================
-// Mouse
-//================
+//================ click =================
 
 cv.onclick=e=>{
 
-let x=e.offsetX,y=e.offsetY
+let x=e.offsetX
+let y=e.offsetY
 
 for(let g of gates){
 
-// OUTPUT click
-let o=g.outputPos()
-if(dist(x,y,o.x,o.y)<8){
+// INPUT toggle
+if(g.type==="INPUT"){
+if(hit(x,y,g.x,g.y,60,40)){
+g.state^=1
+return
+}
+}
 
-connectFrom=g
+// OUTPUT click
+let o=g.out()
+if(dist(x,y,o.x,o.y)<7){
+connect=g
 return
 }
 
 // INPUT click
 for(let i=0;i<2;i++){
-let p=g.inputPos(i)
-if(dist(x,y,p.x,p.y)<8 && connectFrom){
+let p=g.inp(i)
+if(dist(x,y,p.x,p.y)<7 && connect){
 
 wires.push({
-from:connectFrom,
+from:connect,
 to:g,
-input:i
+index:i
 })
 
-connectFrom=null
+connect=null
 return
 }
 }
 
-// DIP switch click
+// ROM DIP
 if(g.type==="ROM"){
 for(let i=0;i<8;i++){
-let dx=g.x+i*8
+let dx=g.x+i7
 let dy=g.y+45
-if(x>dx && x<dx+6 && y>dy && y<dy+12){
+if(hit(x,y,dx,dy,6,12)){
 g.dip[i]^=1
+return
 }
 }
 }
 
 }
 
+}
+
+function hit(x,y,rx,ry,w,h){
+return x>rx&&x<rx+w&&y>ry&&y<ry+h
 }
 
 function dist(x1,y1,x2,y2){
 return Math.hypot(x1-x2,y1-y2)
 }
 
-//================
-// Logic
-//================
+//================ logic =================
 
 function step(){
 
-gates.forEach(g=>{
+// gate logic
+for(let g of gates){
 
 switch(g.type){
 
@@ -191,68 +188,54 @@ case"AND":
 g.output=g.inputs[0]&g.inputs[1]
 break
 
-case"OR":
-g.output=g.inputs[0]|g.inputs[1]
-break
-
 case"NOT":
 g.output=!g.inputs[0]
-break
-
-case"DFF":
-if(g.inputs[1]) g.state=g.inputs[0]
-g.output=g.state
-break
-
-case"ROM":
-let v=0
-for(let i=0;i<8;i++)
-v|=g.dip[i]<<i
-g.output=v&1
 break
 
 case"LED":
 g.output=g.inputs[0]
 break
 
-}
-
-})
-
-// propagate wires
-wires.forEach(w=>{
-w.to.inputs[w.input]=w.from.output
-})
+case"ROM":
+g.output=g.dip[0]
+break
 
 }
 
-//================
-// Draw
-//================
+}
+
+// wire propagation
+for(let w of wires){
+w.to.inputs[w.index]=w.from.output
+}
+
+}
+
+//================ draw =================
 
 function draw(){
 
 ctx.clearRect(0,0,cv.width,cv.height)
 
 // wires
-wires.forEach(w=>{
-let a=w.from.outputPos()
-let b=w.to.inputPos(w.input)
+for(let w of wires){
+
+let a=w.from.out()
+let b=w.to.inp(w.index)
 
 ctx.strokeStyle=w.from.output?"red":"blue"
 ctx.beginPath()
 ctx.moveTo(a.x,a.y)
 ctx.lineTo(b.x,b.y)
 ctx.stroke()
-})
+}
 
+// gates
 gates.forEach(g=>g.draw())
 
 }
 
-//================
-// Loop
-//================
+//================ loop =================
 
 function loop(){
 
