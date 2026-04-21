@@ -2,13 +2,13 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Logic Simulator GUI</title>
+<title>Logic Editor</title>
 
 <style>
 body{margin:0;background:#111;color:white;font-family:sans-serif}
 #bar{background:#222;padding:6px}
-button{margin:2px}
-canvas{display:block;background:#111}
+button{margin:3px}
+canvas{touch-action:none;display:block}
 </style>
 </head>
 
@@ -17,9 +17,6 @@ canvas{display:block;background:#111}
 <div id="bar">
 <button onclick="addGate('INPUT')">INPUT</button>
 <button onclick="addGate('LED')">LED</button>
-<button onclick="addGate('NOT')">NOT</button>
-<button onclick="addGate('AND')">AND</button>
-<button onclick="addGate('CLOCK')">CLOCK</button>
 <button onclick="running=!running">RUN</button>
 </div>
 
@@ -31,109 +28,106 @@ const cv=document.getElementById("cv")
 const ctx=cv.getContext("2d")
 
 function resize(){
-cv.width=innerWidth
-cv.height=innerHeight-40
+cv.width=window.innerWidth
+cv.height=window.innerHeight-40
 }
 resize()
-onresize=resize
+window.onresize=resize
+
+//====================
 
 let gates=[]
 let wires=[]
 let running=false
 
-let dragGate=null
-let offsetX=0
-let offsetY=0
+let dragging=null
 let connectFrom=null
 
-//================ GATE =================
+//====================
 
 class Gate{
+
 constructor(type,x,y){
 this.type=type
 this.x=x
 this.y=y
-this.inputs=[0,0]
 this.output=0
+this.input=0
 this.state=0
 }
 
-out(){return {x:this.x+70,y:this.y+20}}
-inp(i){return {x:this.x,y:this.y+10+i*20}}
+out(){return{x:this.x+80,y:this.y+25}}
+inp(){return{x:this.x,y:this.y+25}}
 
 draw(){
 
 ctx.fillStyle="#333"
-ctx.fillRect(this.x,this.y,70,40)
+ctx.fillRect(this.x,this.y,80,50)
 
 ctx.fillStyle="white"
-ctx.fillText(this.type,this.x+5,this.y+15)
+ctx.fillText(this.type,this.x+10,this.y+15)
 
-// inputs
-for(let i=0;i<2;i++){
-let p=this.inp(i)
-ctx.fillStyle=this.inputs[i]?"red":"blue"
-circle(p.x,p.y,5)
-}
+// input
+let i=this.inp()
+ctx.fillStyle=this.input?"red":"blue"
+circle(i.x,i.y,6)
 
 // output
 let o=this.out()
 ctx.fillStyle=this.output?"red":"blue"
-circle(o.x,o.y,5)
+circle(o.x,o.y,6)
 
-// LED表示
+// LED
 if(this.type==="LED"){
 ctx.fillStyle=this.output?"red":"#222"
-circle(this.x+35,this.y+25,10)
+circle(this.x+40,this.y+30,12)
 }
 }
+
 }
 
 function circle(x,y,r){
 ctx.beginPath()
-ctx.arc(x,y,r,0,6.28)
+ctx.arc(x,y,r,0,Math.PI*2)
 ctx.fill()
 }
 
-//================ ADD =================
+//====================
 
 function addGate(t){
-gates.push(new Gate(t,150,120))
+gates.push(new Gate(t,120,120))
 }
 
-//================ MOUSE =================
+//====================
+// POINTER EVENTS (iPad対応)
+//====================
 
-cv.onmousedown=e=>{
+cv.onpointerdown=e=>{
 
-let x=e.offsetX
-let y=e.offsetY
+const x=e.offsetX
+const y=e.offsetY
 
 for(let g of gates){
 
-// 出力クリック → 配線開始
+// OUTPUTクリック
 let o=g.out()
 if(dist(x,y,o.x,o.y)<8){
 connectFrom=g
 return
 }
 
-// 入力クリック → 配線終了
-for(let i=0;i<2;i++){
-let p=g.inp(i)
-if(dist(x,y,p.x,p.y)<8 && connectFrom){
-wires.push({from:connectFrom,to:g,index:i})
+// INPUTクリック
+let i=g.inp()
+if(dist(x,y,i.x,i.y)<8 && connectFrom){
+wires.push({from:connectFrom,to:g})
 connectFrom=null
 return
 }
-}
 
-// 本体クリック → ドラッグ
-if(hit(x,y,g.x,g.y,70,40)){
-dragGate=g
-offsetX=x-g.x
-offsetY=y-g.y
+// 本体ドラッグ
+if(hit(x,y,g.x,g.y,80,50)){
+dragging=g
 
-// INPUT toggle
 if(g.type==="INPUT"){
 g.state^=1
 }
@@ -144,18 +138,18 @@ return
 
 }
 
-cv.onmousemove=e=>{
-if(dragGate){
-dragGate.x=e.offsetX-offsetX
-dragGate.y=e.offsetY-offsetY
+cv.onpointermove=e=>{
+if(dragging){
+dragging.x=e.offsetX-40
+dragging.y=e.offsetY-25
 }
 }
 
-cv.onmouseup=()=>{
-dragGate=null
+cv.onpointerup=()=>{
+dragging=null
 }
 
-//================ UTILS =================
+//====================
 
 function hit(x,y,rx,ry,w,h){
 return x>rx&&x<rx+w&&y>ry&&y<ry+h
@@ -165,50 +159,31 @@ function dist(x1,y1,x2,y2){
 return Math.hypot(x1-x2,y1-y2)
 }
 
-//================ LOGIC =================
+//====================
+// LOGIC
+//====================
 
 function evaluate(){
 
-gates.forEach(g=>g.inputs=[0,0])
+gates.forEach(g=>g.input=0)
 
-// wire propagate
 wires.forEach(w=>{
-w.to.inputs[w.index]=w.from.output
+w.to.input=w.from.output
 })
 
-// gate compute
 gates.forEach(g=>{
 
-switch(g.type){
-
-case"INPUT":
+if(g.type==="INPUT")
 g.output=g.state
-break
 
-case"CLOCK":
-g.state^=1
-g.output=g.state
-break
-
-case"NOT":
-g.output=g.inputs[0]?0:1
-break
-
-case"AND":
-g.output=g.inputs[0]&g.inputs[1]
-break
-
-case"LED":
-g.output=g.inputs[0]
-break
-
-}
+if(g.type==="LED")
+g.output=g.input
 
 })
 
 }
 
-//================ DRAW =================
+//====================
 
 function draw(){
 
@@ -217,20 +192,22 @@ ctx.clearRect(0,0,cv.width,cv.height)
 // wires
 wires.forEach(w=>{
 let a=w.from.out()
-let b=w.to.inp(w.index)
+let b=w.to.inp()
 
 ctx.strokeStyle=w.from.output?"red":"blue"
+ctx.lineWidth=3
 ctx.beginPath()
 ctx.moveTo(a.x,a.y)
 ctx.lineTo(b.x,b.y)
 ctx.stroke()
 })
 
+// gates
 gates.forEach(g=>g.draw())
 
 }
 
-//================ LOOP =================
+//====================
 
 function loop(){
 
