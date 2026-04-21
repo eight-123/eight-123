@@ -2,13 +2,13 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Logic Simulator</title>
+<title>Logic Simulator GUI</title>
 
 <style>
 body{margin:0;background:#111;color:white;font-family:sans-serif}
 #bar{background:#222;padding:6px}
 button{margin:2px}
-canvas{display:block}
+canvas{display:block;background:#111}
 </style>
 </head>
 
@@ -35,12 +35,16 @@ cv.width=innerWidth
 cv.height=innerHeight-40
 }
 resize()
-window.onresize=resize
+onresize=resize
 
 let gates=[]
 let wires=[]
 let running=false
-let connect=null
+
+let dragGate=null
+let offsetX=0
+let offsetY=0
+let connectFrom=null
 
 //================ GATE =================
 
@@ -54,14 +58,13 @@ this.output=0
 this.state=0
 }
 
-out(){return {x:this.x+60,y:this.y+20}}
+out(){return {x:this.x+70,y:this.y+20}}
 inp(i){return {x:this.x,y:this.y+10+i*20}}
 
 draw(){
 
-// body
 ctx.fillStyle="#333"
-ctx.fillRect(this.x,this.y,60,40)
+ctx.fillRect(this.x,this.y,70,40)
 
 ctx.fillStyle="white"
 ctx.fillText(this.type,this.x+5,this.y+15)
@@ -70,71 +73,89 @@ ctx.fillText(this.type,this.x+5,this.y+15)
 for(let i=0;i<2;i++){
 let p=this.inp(i)
 ctx.fillStyle=this.inputs[i]?"red":"blue"
-ctx.beginPath()
-ctx.arc(p.x,p.y,5,0,6.28)
-ctx.fill()
+circle(p.x,p.y,5)
 }
 
 // output
 let o=this.out()
 ctx.fillStyle=this.output?"red":"blue"
-ctx.beginPath()
-ctx.arc(o.x,o.y,5,0,6.28)
-ctx.fill()
+circle(o.x,o.y,5)
 
 // LED表示
 if(this.type==="LED"){
 ctx.fillStyle=this.output?"red":"#222"
+circle(this.x+35,this.y+25,10)
+}
+}
+}
+
+function circle(x,y,r){
 ctx.beginPath()
-ctx.arc(this.x+30,this.y+25,10,0,6.28)
+ctx.arc(x,y,r,0,6.28)
 ctx.fill()
-}
-}
 }
 
 //================ ADD =================
 
 function addGate(t){
-gates.push(new Gate(t,150+Math.random()*200,120))
+gates.push(new Gate(t,150,120))
 }
 
-//================ CLICK =================
+//================ MOUSE =================
 
-cv.onclick=e=>{
+cv.onmousedown=e=>{
 
 let x=e.offsetX
 let y=e.offsetY
 
 for(let g of gates){
 
-// INPUT toggle
-if(g.type==="INPUT"){
-if(hit(x,y,g.x,g.y,60,40)){
-g.state^=1
-return
-}
-}
-
-// output click
+// 出力クリック → 配線開始
 let o=g.out()
 if(dist(x,y,o.x,o.y)<8){
-connect=g
+connectFrom=g
 return
 }
 
-// input click
+// 入力クリック → 配線終了
 for(let i=0;i<2;i++){
 let p=g.inp(i)
-if(dist(x,y,p.x,p.y)<8 && connect){
-wires.push({from:connect,to:g,index:i})
-connect=null
+if(dist(x,y,p.x,p.y)<8 && connectFrom){
+wires.push({from:connectFrom,to:g,index:i})
+connectFrom=null
 return
 }
 }
 
+// 本体クリック → ドラッグ
+if(hit(x,y,g.x,g.y,70,40)){
+dragGate=g
+offsetX=x-g.x
+offsetY=y-g.y
+
+// INPUT toggle
+if(g.type==="INPUT"){
+g.state^=1
+}
+return
 }
 
 }
+
+}
+
+cv.onmousemove=e=>{
+if(dragGate){
+dragGate.x=e.offsetX-offsetX
+dragGate.y=e.offsetY-offsetY
+}
+}
+
+cv.onmouseup=()=>{
+dragGate=null
+}
+
+//================ UTILS =================
 
 function hit(x,y,rx,ry,w,h){
 return x>rx&&x<rx+w&&y>ry&&y<ry+h
@@ -148,15 +169,14 @@ return Math.hypot(x1-x2,y1-y2)
 
 function evaluate(){
 
-// 1. 初期化
 gates.forEach(g=>g.inputs=[0,0])
 
-// 2. ワイヤ伝搬
+// wire propagate
 wires.forEach(w=>{
 w.to.inputs[w.index]=w.from.output
 })
 
-// 3. ゲート計算
+// gate compute
 gates.forEach(g=>{
 
 switch(g.type){
@@ -207,6 +227,7 @@ ctx.stroke()
 })
 
 gates.forEach(g=>g.draw())
+
 }
 
 //================ LOOP =================
