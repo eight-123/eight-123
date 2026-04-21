@@ -2,21 +2,25 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Logic Editor</title>
+<title>TD4 Logic Simulator</title>
 
 <style>
 body{margin:0;background:#111;color:white;font-family:sans-serif}
 #bar{background:#222;padding:6px}
-button{margin:3px}
-canvas{touch-action:none;display:block}
+button{margin:2px}
+canvas{display:block;background:#111;touch-action:none}
 </style>
 </head>
 
 <body>
 
 <div id="bar">
-<button onclick="addGate('INPUT')">INPUT</button>
-<button onclick="addGate('LED')">LED</button>
+<button onclick="add('INPUT')">INPUT</button>
+<button onclick="add('LED')">LED</button>
+<button onclick="add('CLOCK')">CLOCK</button>
+<button onclick="add('REG')">REGISTER</button>
+<button onclick="add('ALU')">ALU</button>
+<button onclick="add('ROM')">ROM(DIP)</button>
 <button onclick="running=!running">RUN</button>
 </div>
 
@@ -28,13 +32,15 @@ const cv=document.getElementById("cv")
 const ctx=cv.getContext("2d")
 
 function resize(){
-cv.width=window.innerWidth
-cv.height=window.innerHeight-40
+cv.width=innerWidth
+cv.height=innerHeight-40
 }
 resize()
-window.onresize=resize
+onresize=resize
 
-//====================
+//========================
+// GLOBAL
+//========================
 
 let gates=[]
 let wires=[]
@@ -43,80 +49,110 @@ let running=false
 let dragging=null
 let connectFrom=null
 
-//====================
+//========================
+// UTIL
+//========================
+
+function circle(x,y,r,c){
+ctx.fillStyle=c
+ctx.beginPath()
+ctx.arc(x,y,r,0,6.28)
+ctx.fill()
+}
+
+function hit(x,y,rx,ry,w,h){
+return x>rx&&x<rx+w&&y>ry&&y<ry+h
+}
+
+function dist(a,b,c,d){
+return Math.hypot(a-c,b-d)
+}
+
+//========================
+// GATE
+//========================
 
 class Gate{
 
 constructor(type,x,y){
+
 this.type=type
 this.x=x
 this.y=y
-this.output=0
-this.input=0
-this.state=0
+
+this.input=[0,0,0,0]
+this.output=[0,0,0,0]
+
+this.state=[0,0,0,0]
+this.clock=0
+
+// ROM memory (16x8bit)
+if(type==="ROM"){
+this.mem=new Array(16).fill(0)
+this.addr=0
+}
 }
 
-out(){return{x:this.x+80,y:this.y+25}}
-inp(){return{x:this.x,y:this.y+25}}
+out(){return{x:this.x+90,y:this.y+30}}
+inp(){return{x:this.x,y:this.y+30}}
 
 draw(){
 
 ctx.fillStyle="#333"
-ctx.fillRect(this.x,this.y,80,50)
+ctx.fillRect(this.x,this.y,90,60)
 
 ctx.fillStyle="white"
-ctx.fillText(this.type,this.x+10,this.y+15)
+ctx.fillText(this.type,this.x+8,this.y+15)
 
-// input
-let i=this.inp()
-ctx.fillStyle=this.input?"red":"blue"
-circle(i.x,i.y,6)
+let inColor=this.input[0]?"red":"blue"
+let outColor=this.output[0]?"red":"blue"
 
-// output
-let o=this.out()
-ctx.fillStyle=this.output?"red":"blue"
-circle(o.x,o.y,6)
+circle(this.inp().x,this.inp().y,6,inColor)
+circle(this.out().x,this.out().y,6,outColor)
 
 // LED
 if(this.type==="LED"){
-ctx.fillStyle=this.output?"red":"#222"
-circle(this.x+40,this.y+30,12)
+let v=parseInt(this.output.join(""),2)
+ctx.fillStyle=v?"red":"#222"
+circle(this.x+45,this.y+40,14)
 }
+
+// ROM DIP表示
+if(this.type==="ROM"){
+ctx.fillText("ADDR:"+this.addr,this.x+5,this.y+30)
+ctx.fillText(this.mem[this.addr]
+.toString(2).padStart(8,"0"),this.x+5,this.y+50)
 }
 
 }
 
-function circle(x,y,r){
-ctx.beginPath()
-ctx.arc(x,y,r,0,Math.PI*2)
-ctx.fill()
 }
 
-//====================
+//========================
+// ADD
+//========================
 
-function addGate(t){
+function add(t){
 gates.push(new Gate(t,120,120))
 }
 
-//====================
-// POINTER EVENTS (iPad対応)
-//====================
+//========================
+// POINTER
+//========================
 
 cv.onpointerdown=e=>{
 
-const x=e.offsetX
-const y=e.offsetY
+let x=e.offsetX
+let y=e.offsetY
 
 for(let g of gates){
 
-// OUTPUTクリック
 let o=g.out()
 if(dist(x,y,o.x,o.y)<8){
 connectFrom=g
 return
 }
 
-// INPUTクリック
 let i=g.inp()
 if(dist(x,y,i.x,i.y)<8 && connectFrom){
 wires.push({from:connectFrom,to:g})
@@ -124,13 +160,16 @@ connectFrom=null
 return
 }
 
-// 本体ドラッグ
-if(hit(x,y,g.x,g.y,80,50)){
+if(hit(x,y,g.x,g.y,90,60)){
 dragging=g
 
-if(g.type==="INPUT"){
-g.state^=1
+if(g.type==="INPUT")
+g.state[0]^=1
+
+if(g.type==="ROM"){
+g.mem[g.addr]^=1
 }
+
 return
 }
 
@@ -140,50 +179,86 @@ return
 
 cv.onpointermove=e=>{
 if(dragging){
-dragging.x=e.offsetX-40
-dragging.y=e.offsetY-25
+dragging.x=e.offsetX-45
+dragging.y=e.offsetY-30
 }
 }
 
-cv.onpointerup=()=>{
-dragging=null
-}
+cv.onpointerup=()=>dragging=null
 
-//====================
-
-function hit(x,y,rx,ry,w,h){
-return x>rx&&x<rx+w&&y>ry&&y<ry+h
-}
-
-function dist(x1,y1,x2,y2){
-return Math.hypot(x1-x2,y1-y2)
-}
-
-//====================
+//========================
 // LOGIC
-//====================
+//========================
 
 function evaluate(){
 
-gates.forEach(g=>g.input=0)
+gates.forEach(g=>g.input=[0,0,0,0])
 
+// wire propagate
 wires.forEach(w=>{
-w.to.input=w.from.output
+w.to.input=[...w.from.output]
 })
 
+// gate logic
 gates.forEach(g=>{
 
-if(g.type==="INPUT")
-g.output=g.state
+switch(g.type){
 
-if(g.type==="LED")
-g.output=g.input
+case"INPUT":
+g.output=[g.state[0],0,0,0]
+break
+
+case"CLOCK":
+g.clock^=1
+g.output=[g.clock,0,0,0]
+break
+
+case"LED":
+g.output=[...g.input]
+break
+
+case"REG":
+g.output=[...g.input]
+break
+
+case"ALU":
+
+let a=parseInt(g.input.join(""),2)
+let b=parseInt(g.state.join(""),2)
+
+let s=(a+b)&15
+
+g.output=[
+(s>>3)&1,
+(s>>2)&1,
+(s>>1)&1,
+s&1
+]
+break
+
+case"ROM":
+
+g.addr=parseInt(g.input.join(""),2)&15
+
+let v=g.mem[g.addr]
+
+g.output=[
+(v>>7)&1,
+(v>>6)&1,
+(v>>5)&1,
+(v>>4)&1
+]
+break
+
+}
 
 })
 
 }
 
-//====================
+//========================
+// DRAW
+//========================
 
 function draw(){
 
@@ -194,7 +269,7 @@ wires.forEach(w=>{
 let a=w.from.out()
 let b=w.to.inp()
 
-ctx.strokeStyle=w.from.output?"red":"blue"
+ctx.strokeStyle=w.from.output[0]?"red":"blue"
 ctx.lineWidth=3
 ctx.beginPath()
 ctx.moveTo(a.x,a.y)
@@ -202,17 +277,14 @@ ctx.lineTo(b.x,b.y)
 ctx.stroke()
 })
 
-// gates
 gates.forEach(g=>g.draw())
 
 }
 
-//====================
+//========================
 
 function loop(){
-
 if(running) evaluate()
-
 draw()
 requestAnimationFrame(loop)
 }
