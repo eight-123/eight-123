@@ -1,104 +1,70 @@
-<!DOCTYPE html>
-<html>
-<head>
-<meta charset="UTF-8">
-<title>実音変換ツール</title>
-
-<style>
-body{
-    font-family:sans-serif;
-    text-align:center;
-    margin-top:40px;
-}
-
-select,input,button{
-    font-size:20px;
-    margin:8px;
-}
-
-#result{
-    font-size:28px;
-    margin-top:20px;
-}
-</style>
-</head>
-
-<body>
-
-<h1>🎼 実音変換</h1>
-
-<!-- 移調選択 -->
-<label>楽譜：</label>
-<select id="instrument">
-<option value="0">in C</option>
-<option value="-2">in B♭</option>
-<option value="3">in E♭</option>
-<option value="-5">in F</option>
-</select>
-
-<br>
-
-<!-- 音名 -->
-<label>音名：</label>
-<select id="note">
-<option>C>ド</option>
-<option>D>レ</option>
-<option>E>ミ</option>
-<option>F>ファ</option>
-<option>G>ソ</option>
-<option>A>ラ</option>
-<option>B>シ</option>
-</select>
-
-<!-- ♮♭♯ -->
-<select id="accidental">
-<option value="0">♮</option>
-<option value="1">♯</option>
-<option value="-1">♭</option>
-</select>
-
-<br>
-
-<button onclick="convert()">変換</button>
-
-<div id="result"></div>
-
-<script>
-
-const scale=[
-"C","C#","D","D#","E",
-"F","F#","G","G#","A","A#","B"
+const CHROMATIC = [
+  "C","Des","D","Es","E",
+  "F","Ges","G","As","A","H","B"
 ];
+
+const SOLFEGE = [
+  "ド","レ","ミ","ファ","ソ","ラ","シ"
+];
+
+const DIATONIC_SCALES = {
+  inC:  ["C","D","E","F","G","A","H"],
+
+  inB: ["B","C","D","Es","F","G","A"],
+
+  inEb: ["Es","F","G","As","B","C","D"],
+
+  inF:  ["F","G","A","B","C","D","E"]
+};
 
 function convert(){
 
-let shift=Number(
-document.getElementById("instrument").value
-);
+    // ===== 入力 =====
+    const key =
+        document.getElementById("instrument").value;
 
-let note=
-document.getElementById("note").value;
+    const solfege =
+        document.getElementById("note").value;
 
-let accidental=
-Number(
-document.getElementById("accidental").value
-);
+    const accidental =
+        Number(
+            document.getElementById("accidental").value
+        );
 
-// 基本音の位置
-let index=scale.indexOf(note);
 
-// ♯♭反映
-index+=accidental;
+    // ===== 調の全音階取得 =====
+    const scale =
+        DIATONIC_SCALES[key];
 
-// 実音へ移調
-let newIndex=(index+shift+12)%12;
 
-document.getElementById("result")
-.innerText="実音： "+scale[newIndex];
+    // ===== A：ドレミの番号 =====
+    const A =
+        SOLFEGE.indexOf(solfege);
 
+
+    // ===== B：その調の音 =====
+    const B =
+        scale[A];
+
+
+    // ===== C：半音階位置 =====
+    let C =
+        CHROMATIC.indexOf(B);
+
+
+    // ===== D：臨時記号 =====
+    let D =
+        C + accidental;
+
+    D =
+        (D + CHROMATIC.length)
+        % CHROMATIC.length;
+
+
+    // ===== 結果 =====
+    const result =
+        CHROMATIC[D];
+
+    document.getElementById("result")
+        .textContent = result;
 }
-
-</script>
-
-</body>
-</html>
