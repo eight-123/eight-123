@@ -1,28 +1,43 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html>
 <head>
 <meta charset="UTF-8">
-<title>移調ツール</title>
+
+<title>移調変換ツール</title>
 
 <style>
 body{
     font-family:sans-serif;
-    padding:20px;
+    margin:0;
 }
 
-label{
-    display:block;
-    margin-top:10px;
+.container{
+    display:flex;
+    height:100vh;
+}
+
+.panel{
+    flex:1;
+    padding:20px;
+    border-right:1px solid #ccc;
+}
+
+.panel:last-child{
+    border-right:none;
+}
+
+h2{
+    margin-top:0;
 }
 
 select,button{
     font-size:16px;
-    padding:5px;
+    margin:5px 0;
 }
 
-#result{
-    margin-top:20px;
-    font-size:28px;
+.result{
+    margin-top:15px;
+    font-size:22px;
     font-weight:bold;
 }
 </style>
@@ -30,101 +45,170 @@ select,button{
 
 <body>
 
-<h2>楽譜 → 実音 変換</h2>
+<div class="container">
 
-<!-- 楽器 -->
-<label>
-調(inCなど)
-<select id="instrument">
-    <option value="inC">in C</option>
-    <option value="inB">in B♭</option>
-    <option value="inEb">in E♭</option>
-    <option value="inF">in F</option>
+<!-- ================= 左 ================= -->
+<div class="panel">
+
+<h2>🎵 ドレミ → ドイツ音名</h2>
+
+楽器：
+<select id="inst1">
+<option value="C">inC</option>
+<option value="B">inB</option>
+<option value="Es">inEb</option>
+<option value="F">inF</option>
 </select>
-</label>
 
-<!-- ドレミ -->
-<label>
-音名
-<select id="note">
-    <option>ド</option>
-    <option>レ</option>
-    <option>ミ</option>
-    <option>ファ</option>
-    <option>ソ</option>
-    <option>ラ</option>
-    <option>シ</option>
+<br>
+
+ドレミ：
+<select id="solfege">
+<option>ド</option>
+<option>レ</option>
+<option>ミ</option>
+<option>ファ</option>
+<option>ソ</option>
+<option>ラ</option>
+<option>シ</option>
 </select>
-</label>
 
-<!-- 臨時記号 -->
-<label>
-臨時記号
+<br>
+
+臨時記号：
 <select id="accidental">
-    <option value="0">♮</option>
-    <option value="1">♯</option>
-    <option value="-1">♭</option>
+<option value="0">♮</option>
+<option value="1">#</option>
+<option value="-1">♭</option>
 </select>
-</label>
 
 <br><br>
 
-<button onclick="convert()">変換</button>
+<button onclick="solfegeToNote()">変換</button>
 
-<div id="result">--</div>
+<div id="result1" class="result"></div>
+
+</div>
+
+
+
+<!-- ================= 右 ================= -->
+<div class="panel">
+
+<h2>🎵 ドイツ音名 → ドレミ</h2>
+
+楽器：
+<select id="inst2">
+<option value="C">inC</option>
+<option value="B">inB</option>
+<option value="Es">inEb</option>
+<option value="F">inF</option>
+</select>
+
+<br>
+
+音名：
+<select id="note">
+<option>C</option>
+<option>Des</option>
+<option>D</option>
+<option>Es</option>
+<option>E</option>
+<option>F</option>
+<option>Ges</option>
+<option>G</option>
+<option>As</option>
+<option>A</option>
+<option>B</option>
+<option>H</option>
+</select>
+
+<br><br>
+
+<button onclick="noteToSolfege()">変換</button>
+
+<div id="result2" class="result"></div>
+
+</div>
+
+</div>
+
 
 <script>
 
-const CHROMATIC = [
-  "C","Des","D","Es","E",
-  "F","Ges","G","As","A","B","H"
-];
-
-const SOLFEGE = [
-  "ド","レ","ミ","ファ","ソ","ラ","シ"
-];
-
-const DIATONIC_SCALES = {
-  inC:  ["C","D","E","F","G","A","H"],
-  inB:  ["B","C","D","Es","F","G","A"],
-  inEb: ["Es","F","G","As","B","C","D"],
-  inF:  ["F","G","A","B","C","D","E"]
+// ===== 半音 =====
+const NOTE_TO_SEMITONE={
+C:0,Des:1,D:2,Es:3,E:4,
+F:5,Ges:6,G:7,As:8,A:9,B:10,H:11
 };
 
-function convert(){
+const CHROMATIC=[
+"C","Des","D","Es","E",
+"F","Ges","G","As","A","B","H"
+];
 
-    const key =
-        document.getElementById("instrument").value;
+// ドレミ基本
+const SOLFEGE_BASE=["ド","レ","ミ","ファ","ソ","ラ","シ"];
 
-    const solfege =
-        document.getElementById("note").value;
+// 半音ドレミ
+const SOLFEGE_SHARP=[
+"ド","ド#","レ","レ#","ミ",
+"ファ","ファ#","ソ","ソ#","ラ","ラ#","シ"
+];
 
-    const accidental =
-        Number(
-            document.getElementById("accidental").value
-        );
+const SOLFEGE_FLAT=[
+"ド","レ♭","レ","ミ♭","ミ",
+"ファ","ソ♭","ソ","ラ♭","ラ","シ♭","シ"
+];
 
-    const scale =
-        DIATONIC_SCALES[key];
+// =====================
+// ドレミ → 音名
+// =====================
+function solfegeToNote(){
 
-    const A =
-        SOLFEGE.indexOf(solfege);
+const inst=document.getElementById("inst1").value;
+const sol=document.getElementById("solfege").value;
+const accidental=Number(
+ document.getElementById("accidental").value
+);
 
-    const B =
-        scale[A];
+const doSemitone=NOTE_TO_SEMITONE[inst];
 
-    let C =
-        CHROMATIC.indexOf(B);
+// ドレミ番号
+const index=SOLFEGE_BASE.indexOf(sol);
 
-    let D =
-        (C + accidental + CHROMATIC.length)
-        % CHROMATIC.length;
+// ドレミ→半音
+const MAJOR_STEPS=[0,2,4,5,7,9,11];
+let semitone=(doSemitone+MAJOR_STEPS[index])%12;
 
-    const result =
-        CHROMATIC[D];
+// 臨時記号
+semitone=(semitone+accidental+12)%12;
 
-    document.getElementById("result")
-        .textContent = result;
+document.getElementById("result1").textContent=
+CHROMATIC[semitone];
+}
+
+
+
+// =====================
+// 音名 → ドレミ
+// =====================
+function noteToSolfege(){
+
+const inst=document.getElementById("inst2").value;
+const note=document.getElementById("note").value;
+
+const input=NOTE_TO_SEMITONE[note];
+const doSemitone=NOTE_TO_SEMITONE[inst];
+
+// 相対半音
+const relative=(input-doSemitone+12)%12;
+
+const sharp=SOLFEGE_SHARP[relative];
+const flat=SOLFEGE_FLAT[relative];
+
+document.getElementById("result2").textContent=
+sharp+" / "+flat;
 }
 
 </script>
