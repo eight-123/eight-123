@@ -2,295 +2,103 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>TD4 Logic Simulator</title>
+<title>実音変換ツール</title>
 
 <style>
-body{margin:0;background:#111;color:white;font-family:sans-serif}
-#bar{background:#222;padding:6px}
-button{margin:2px}
-canvas{display:block;background:#111;touch-action:none}
+body{
+    font-family:sans-serif;
+    text-align:center;
+    margin-top:40px;
+}
+
+select,input,button{
+    font-size:20px;
+    margin:8px;
+}
+
+#result{
+    font-size:28px;
+    margin-top:20px;
+}
 </style>
 </head>
 
 <body>
 
-<div id="bar">
-<button onclick="add('INPUT')">INPUT</button>
-<button onclick="add('LED')">LED</button>
-<button onclick="add('CLOCK')">CLOCK</button>
-<button onclick="add('REG')">REGISTER</button>
-<button onclick="add('ALU')">ALU</button>
-<button onclick="add('ROM')">ROM(DIP)</button>
-<button onclick="running=!running">RUN</button>
-</div>
+<h1>🎼 実音変換</h1>
 
-<canvas id="cv"></canvas>
+<!-- 移調選択 -->
+<label>楽譜：</label>
+<select id="instrument">
+<option value="0">in C</option>
+<option value="-2">in B♭</option>
+<option value="3">in E♭</option>
+<option value="-5">in F</option>
+</select>
+
+<br>
+
+<!-- 音名 -->
+<label>音名：</label>
+<select id="note">
+<option>C>ド</option>
+<option>D>レ</option>
+<option>E>ミ</option>
+<option>F>ファ</option>
+<option>G>ソ</option>
+<option>A>ラ</option>
+<option>B>シ</option>
+</select>
+
+<!-- ♮♭♯ -->
+<select id="accidental">
+<option value="0">♮</option>
+<option value="1">♯</option>
+<option value="-1">♭</option>
+</select>
+
+<br>
+
+<button onclick="convert()">変換</button>
+
+<div id="result"></div>
 
 <script>
 
-const cv=document.getElementById("cv")
-const ctx=cv.getContext("2d")
+const scale=[
+"C","C#","D","D#","E",
+"F","F#","G","G#","A","A#","B"
+];
 
-function resize(){
-cv.width=innerWidth
-cv.height=innerHeight-40
-}
-resize()
-onresize=resize
+function convert(){
 
-//========================
-// GLOBAL
-//========================
+let shift=Number(
+document.getElementById("instrument").value
+);
 
-let gates=[]
-let wires=[]
-let running=false
+let note=
+document.getElementById("note").value;
 
-let dragging=null
-let connectFrom=null
+let accidental=
+Number(
+document.getElementById("accidental").value
+);
 
-//========================
-// UTIL
-//========================
+// 基本音の位置
+let index=scale.indexOf(note);
 
-function circle(x,y,r,c){
-ctx.fillStyle=c
-ctx.beginPath()
-ctx.arc(x,y,r,0,6.28)
-ctx.fill()
-}
+// ♯♭反映
+index+=accidental;
 
-function hit(x,y,rx,ry,w,h){
-return x>rx&&x<rx+w&&y>ry&&y<ry+h
-}
+// 実音へ移調
+let newIndex=(index+shift+12)%12;
 
-function dist(a,b,c,d){
-return Math.hypot(a-c,b-d)
-}
-
-//========================
-// GATE
-//========================
-
-class Gate{
-
-constructor(type,x,y){
-
-this.type=type
-this.x=x
-this.y=y
-
-this.input=[0,0,0,0]
-this.output=[0,0,0,0]
-
-this.state=[0,0,0,0]
-this.clock=0
-
-// ROM memory (16x8bit)
-if(type==="ROM"){
-this.mem=new Array(16).fill(0)
-this.addr=0
-}
-}
-
-out(){return{x:this.x+90,y:this.y+30}}
-inp(){return{x:this.x,y:this.y+30}}
-
-draw(){
-
-ctx.fillStyle="#333"
-ctx.fillRect(this.x,this.y,90,60)
-
-ctx.fillStyle="white"
-ctx.fillText(this.type,this.x+8,this.y+15)
-
-let inColor=this.input[0]?"red":"blue"
-let outColor=this.output[0]?"red":"blue"
-
-circle(this.inp().x,this.inp().y,6,inColor)
-circle(this.out().x,this.out().y,6,outColor)
-
-// LED
-if(this.type==="LED"){
-let v=parseInt(this.output.join(""),2)
-ctx.fillStyle=v?"red":"#222"
-circle(this.x+45,this.y+40,14)
-}
-
-// ROM DIP表示
-if(this.type==="ROM"){
-ctx.fillText("ADDR:"+this.addr,this.x+5,this.y+30)
-ctx.fillText(this.mem[this.addr]
-.toString(2).padStart(8,"0"),this.x+5,this.y+50)
-}
+document.getElementById("result")
+.innerText="実音： "+scale[newIndex];
 
 }
-
-}
-
-//========================
-// ADD
-//========================
-
-function add(t){
-gates.push(new Gate(t,120,120))
-}
-
-//========================
-// POINTER
-//========================
-
-cv.onpointerdown=e=>{
-
-let x=e.offsetX
-let y=e.offsetY
-
-for(let g of gates){
-
-let o=g.out()
-if(dist(x,y,o.x,o.y)<8){
-connectFrom=g
-return
-}
-
-let i=g.inp()
-if(dist(x,y,i.x,i.y)<8 && connectFrom){
-wires.push({from:connectFrom,to:g})
-connectFrom=null
-return
-}
-
-if(hit(x,y,g.x,g.y,90,60)){
-dragging=g
-
-if(g.type==="INPUT")
-g.state[0]^=1
-
-if(g.type==="ROM"){
-g.mem[g.addr]^=1
-}
-
-return
-}
-
-}
-
-}
-
-cv.onpointermove=e=>{
-if(dragging){
-dragging.x=e.offsetX-45
-dragging.y=e.offsetY-30
-}
-}
-
-cv.onpointerup=()=>dragging=null
-
-//========================
-// LOGIC
-//========================
-
-function evaluate(){
-
-gates.forEach(g=>g.input=[0,0,0,0])
-
-// wire propagate
-wires.forEach(w=>{
-w.to.input=[...w.from.output]
-})
-
-// gate logic
-gates.forEach(g=>{
-
-switch(g.type){
-
-case"INPUT":
-g.output=[g.state[0],0,0,0]
-break
-
-case"CLOCK":
-g.clock^=1
-g.output=[g.clock,0,0,0]
-break
-
-case"LED":
-g.output=[...g.input]
-break
-
-case"REG":
-g.output=[...g.input]
-break
-
-case"ALU":
-
-let a=parseInt(g.input.join(""),2)
-let b=parseInt(g.state.join(""),2)
-
-let s=(a+b)&15
-
-g.output=[
-(s>>3)&1,
-(s>>2)&1,
-(s>>1)&1,
-s&1
-]
-break
-
-case"ROM":
-
-g.addr=parseInt(g.input.join(""),2)&15
-
-let v=g.mem[g.addr]
-
-g.output=[
-(v>>7)&1,
-(v>>6)&1,
-(v>>5)&1,
-(v>>4)&1
-]
-break
-
-}
-
-})
-
-}
-
-//========================
-// DRAW
-//========================
-
-function draw(){
-
-ctx.clearRect(0,0,cv.width,cv.height)
-
-// wires
-wires.forEach(w=>{
-let a=w.from.out()
-let b=w.to.inp()
-
-ctx.strokeStyle=w.from.output[0]?"red":"blue"
-ctx.lineWidth=3
-ctx.beginPath()
-ctx.moveTo(a.x,a.y)
-ctx.lineTo(b.x,b.y)
-ctx.stroke()
-})
-
-gates.forEach(g=>g.draw())
-
-}
-
-//========================
-
-function loop(){
-if(running) evaluate()
-draw()
-requestAnimationFrame(loop)
-}
-
-loop()
 
 </script>
+
 </body>
 </html>
