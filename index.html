@@ -1,6 +1,83 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>移調ツール</title>
+
+<style>
+body{
+    font-family:sans-serif;
+    padding:20px;
+}
+
+label{
+    display:block;
+    margin-top:10px;
+}
+
+select,button{
+    font-size:16px;
+    padding:5px;
+}
+
+#result{
+    margin-top:20px;
+    font-size:28px;
+    font-weight:bold;
+}
+</style>
+</head>
+
+<body>
+
+<h2>楽譜 → 実音 変換</h2>
+
+<!-- 楽器 -->
+<label>
+調(inCなど)
+<select id="instrument">
+    <option value="inC">in C</option>
+    <option value="inB">in B♭</option>
+    <option value="inEb">in E♭</option>
+    <option value="inF">in F</option>
+</select>
+</label>
+
+<!-- ドレミ -->
+<label>
+音名
+<select id="note">
+    <option>ド</option>
+    <option>レ</option>
+    <option>ミ</option>
+    <option>ファ</option>
+    <option>ソ</option>
+    <option>ラ</option>
+    <option>シ</option>
+</select>
+</label>
+
+<!-- 臨時記号 -->
+<label>
+臨時記号
+<select id="accidental">
+    <option value="0">♮</option>
+    <option value="1">♯</option>
+    <option value="-1">♭</option>
+</select>
+</label>
+
+<br><br>
+
+<button onclick="convert()">変換</button>
+
+<div id="result">--</div>
+
+<script>
+
 const CHROMATIC = [
   "C","Des","D","Es","E",
-  "F","Ges","G","As","A","H","B"
+  "F","Ges","G","As","A","B","H"
 ];
 
 const SOLFEGE = [
@@ -9,17 +86,13 @@ const SOLFEGE = [
 
 const DIATONIC_SCALES = {
   inC:  ["C","D","E","F","G","A","H"],
-
-  inB: ["B","C","D","Es","F","G","A"],
-
+  inB:  ["B","C","D","Es","F","G","A"],
   inEb: ["Es","F","G","As","B","C","D"],
-
   inF:  ["F","G","A","B","C","D","E"]
 };
 
 function convert(){
 
-    // ===== 入力 =====
     const key =
         document.getElementById("instrument").value;
 
@@ -31,40 +104,30 @@ function convert(){
             document.getElementById("accidental").value
         );
 
-
-    // ===== 調の全音階取得 =====
     const scale =
         DIATONIC_SCALES[key];
 
-
-    // ===== A：ドレミの番号 =====
     const A =
         SOLFEGE.indexOf(solfege);
 
-
-    // ===== B：その調の音 =====
     const B =
         scale[A];
 
-
-    // ===== C：半音階位置 =====
     let C =
         CHROMATIC.indexOf(B);
 
-
-    // ===== D：臨時記号 =====
     let D =
-        C + accidental;
-
-    D =
-        (D + CHROMATIC.length)
+        (C + accidental + CHROMATIC.length)
         % CHROMATIC.length;
 
-
-    // ===== 結果 =====
     const result =
         CHROMATIC[D];
 
     document.getElementById("result")
         .textContent = result;
 }
+
+</script>
+
+</body>
+</html>
